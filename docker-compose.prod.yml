@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: "traefik:v2.10"
+    container_name: "traefik"
+    command:
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      # Importante: Cambiar al correo corporativo real
+      - "--certificatesresolvers.myresolver.acme.email=admin@farmex.com.pe"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "letsencrypt:/letsencrypt"
+    restart: unless-stopped
+    networks:
+      - tms-network
+
+  tms-frontend:
+    build: 
+      context: ./tms-frontend
+      dockerfile: Dockerfile
+    container_name: tms-frontend
+    restart: unless-stopped
+    mem_limit: 512m
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`viajes.farmex.com.pe`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=myresolver"
+      # Redireccion de HTTP a HTTPS
+      - "traefik.http.routers.frontend-http.rule=Host(`viajes.farmex.com.pe`)"
+      - "traefik.http.routers.frontend-http.entrypoints=web"
+      - "traefik.http.routers.frontend-http.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+    networks:
+      - tms-network
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: n8n
+    environment:
+      - N8N_HOST=n8n.farmex.com.pe
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://n8n.farmex.com.pe/
+      - GENERIC_TIMEZONE=America/Lima
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+    mem_limit: 1024m
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.n8n.rule=Host(`n8n.farmex.com.pe`)"
+      - "traefik.http.routers.n8n.entrypoints=websecure"
+      - "traefik.http.routers.n8n.tls.certresolver=myresolver"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+    networks:
+      - tms-network
+
+volumes:
+  n8n_data:
+  letsencrypt:
+
+networks:
+  tms-network:
+    driver: bridge

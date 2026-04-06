@@ -1,0 +1,660 @@
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 1 
+ 
+FARMEX S.A. 
+FARMEXAGROINPER 
+PLAN DE DISEÑO DE SOLUCIÓN 
+Sistema de Gestión de Viajes Corporativos (TMS) 
+ 
+Versión 1.0 – Abril 2026 
+Estado Para revisión 
+Responsable Pilar Pasco – FARMEX 
+Contacto ppasco@farmex.com.pe 
+  
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 2 
+1. Resumen Ejecutivo 
+Este documento describe el plan de diseño completo para el nuevo Sistema de Gestión de Viajes 
+Corporativos (TMS) de FARMEX. El sistema reemplazará los procesos manuales actuales (correos, Excel, 
+coordinación telefónica) por una plataforma centralizada, automatizada e integrada con Microsoft 365. 
+ 
+Objetivo principal 
+Digitalizar y automatizar el flujo completo de solicitud, cotización, aprobación, confirmación y seguimiento de 
+viajes corporativos, incluyendo pasajes aéreos y hospedaje, para eventos individuales y grupales. 
+ 
+1.1 Contexto actual 
+FARMEX gestiona viajes corporativos para aproximadamente 83 empleados distribuidos en zonas 
+geográficas de todo el Perú (Arequipa, Tacna, Trujillo, Chiclayo, Piura, Huánuco, Tarapoto, Jauja, entre 
+otras). El proceso actual presenta las siguientes ineficiencias: 
+• Coordinación manual por correo electrónico entre responsable de viajes y agencia de viajes Travel Security. 
+• Seguimiento de reservas en hojas Excel sin trazabilidad de cambios ni alertas automáticas. 
+• Aprobaciones informales sin registro de motivos de rechazo ni historial de decisiones. 
+• Sin proceso estandarizado para cambios y cancelaciones post-confirmación. 
+• Carga manual de datos para eventos grupales (83+ empleados en abril 2026). 
+ 
+1.2 Perfil tecnológico de FARMEX 
+Parámetro Detalle 
+Usuarios del sistema Menos de 100 empleados 
+Infraestructura actual Microsoft 365 (Outlook, Teams, OneDrive, SharePoint) 
+Equipo técnico Sin equipo interno definido — se contratará consultor externo 
+Agencia de viajes Travel Security (travelbtc@travelsecurity.pe) 
+Contacto FARMEX Pilar Pasco — ppasco@farmex.com.pe — 997 500 136 
+  
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 3 
+2. Flujos de Proceso 
+El sistema contempla tres flujos principales que se activan secuencialmente según las condiciones de cada 
+solicitud. 
+ 
+2.1 Flujo A — Solicitud y confirmación de pasajes 
+Este flujo se activa con cada solicitud de viaje, ya sea individual o por carga masiva. La primera bifurcación 
+determina si el flujo requiere aprobación del jefe directo o no, configuración que se define a nivel de empresa. 
+ 
+2.1.1 Flujo SIN aprobación (directo) 
+En este flujo el responsable de viajes tiene autonomía total. Ningún jefe interviene en ningún paso. Pasos: 
+1. El empleado (o el responsable por carga masiva) llena el formulario de solicitud de viaje con: origen, destino, 
+fechas, justificación y si requiere hospedaje. 
+2. El responsable de viajes recibe la solicitud y la envía directamente a la agencia de viajes. 
+3. La agencia de viajes envía las alternativas de vuelo (aerolínea, número de vuelo, horarios, tarifa, condiciones de 
+cambio y cancelación). 
+4. El sistema genera automáticamente un cuadro comparativo ejecutivo con pros y contras de cada alternativa 
+usando inteligencia artificial (Claude API). 
+5. El responsable de viajes revisa el cuadro comparativo y selecciona la mejor alternativa. 
+6. El responsable confirma la reserva directamente a la agencia de viajes por correo electrónico. 
+7. La agencia emite el boleto y envía la confirmación de reserva. El sistema hace seguimiento automático hasta 
+recibirla. 
+ 
+2.1.2 Flujo CON aprobación del jefe 
+Idéntico al flujo sin aprobación hasta el paso de selección de alternativa. A partir de ahí: 
+8. El responsable de viajes selecciona la mejor alternativa y envía al jefe directo del solicitante para aprobación. 
+9. El jefe recibe un correo en Outlook con botones de 'Aprobar' y 'Rechazar', con campo para indicar motivo de 
+rechazo. 
+10. Si el jefe aprueba: el flujo continúa con la confirmación a la agencia (igual que flujo sin aprobación). 
+11. Si el jefe rechaza: se notifica al solicitante con el motivo. Si el motivo implica buscar nuevas alternativas, el 
+solicitante debe iniciar una nueva solicitud. 
+ 
+Diferencia clave 
+En el flujo SIN aprobación, el responsable confirma directo a la agencia. El jefe no aparece en ningún paso. En 
+el flujo CON aprobación, el jefe aprueba o rechaza antes de confirmar a la agencia. 
+ 
+2.2 Flujo B — Hospedaje 
+Se activa automáticamente cuando la solicitud de viaje incluye hospedaje y el pasaje ha sido confirmado 
+(Flujo A completado). Pasos: 
+12. El responsable de viajes solicita cotización de hospedaje a múltiples hoteles de la lista de proveedores. 
+13. Los hoteles envían sus cotizaciones hasta una fecha límite configurada en el sistema. 
+14. Al vencer la fecha límite, el sistema genera un resumen ejecutivo comparativo de todas las opciones de hotel 
+con pros y contras. 
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 4 
+15. El responsable de viajes revisa el resumen y selecciona el hotel más conveniente. 
+16. El responsable envía correo de confirmación al hotel seleccionado. 
+17. El hotel envía confirmación de reserva de hospedaje. El sistema hace seguimiento hasta recibirla. 
+ 
+2.3 Flujo C — Cambios y cancelaciones post-confirmación 
+Se activa cuando existe una reserva confirmada (vuelo y/o hotel) y se necesita modificar o cancelar por 
+causas de fuerza mayor. Pasos: 
+18. El solicitante ingresa la solicitud de cambio o cancelación con descripción del motivo. 
+19. El responsable de viajes evalúa el impacto operativo y las penalidades económicas aplicables. 
+20. Se envía al jefe directo para aprobación (este flujo siempre requiere aprobación, independientemente de la 
+configuración). 
+21. Si el jefe aprueba: el responsable gestiona el cambio o cancelación con la agencia y/o el hotel. 
+22. Si el jefe rechaza: se notifica al solicitante que el viaje continúa sin cambios. 
+ 
+2.4 Seguimiento automático de confirmaciones (SLA) 
+El sistema monitorea automáticamente que tanto la agencia de viajes como los hoteles envíen sus 
+confirmaciones dentro de los plazos definidos: 
+• Cada hora, el sistema revisa qué reservas tienen confirmación pendiente. 
+• Si una confirmación lleva más horas de lo configurado sin respuesta, envía alerta automática por Teams y 
+correo al responsable de viajes. 
+• Si el plazo máximo vence sin respuesta, escala la alerta al jefe del responsable. 
+• Todas las alertas y escalamientos quedan registrados en el historial de la solicitud. 
+  
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 5 
+3. Diseño de Base de Datos 
+La base de datos está organizada en tres capas lógicas: configuración (maestros), proceso (transacciones) y 
+seguimiento (trazabilidad). Se recomienda PostgreSQL como motor de base de datos. 
+ 
+3.1 Tablas de configuración (maestros) 
+ 
+empresas 
+Campo Tipo Descripción 
+id_empresa UUID / PK Identificador único de empresa 
+nombre VARCHAR(200) Razón social 
+ruc VARCHAR(20) RUC de la empresa 
+flujo_aprobacion BOOLEAN Si=requiere aprobación del jefe, No=flujo directo 
+dias_anticipacion_min INTEGER Días mínimos de anticipación para solicitar viaje 
+moneda_default VARCHAR(3) PEN o USD 
+sla_horas_agencia INTEGER Horas máximas para respuesta de agencia 
+sla_horas_hotel INTEGER Horas máximas para respuesta de hotel 
+activo BOOLEAN Estado de la empresa en el sistema 
+ 
+empleados 
+Campo Tipo Descripción 
+id_empleado UUID / PK Identificador único 
+id_empresa UUID / FK Referencia a tabla empresas 
+id_jefe_directo UUID / FK self Auto-referencia al jefe directo 
+dni VARCHAR(15) Documento de identidad 
+ap_paterno, ap_materno, 
+nombres VARCHAR(100) Nombre completo 
+cargo VARCHAR(200) Cargo actual 
+email_corporativo VARCHAR(200) Correo para notificaciones 
+celular VARCHAR(20) Celular para SMS e itinerario 
+zona_macro, ubicacion VARCHAR(100) Zona geográfica y ubicación habitual 
+puede_aprobar BOOLEAN Si puede ser aprobador de solicitudes 
+ 
+agencias_viaje y hoteles_proveedores 
+Campo Tipo Descripción 
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 6 
+id_agencia / id_hotel UUID / PK Identificador único del proveedor 
+nombre, ruc VARCHAR Datos del proveedor 
+email_cotizaciones VARCHAR(200) Correo para envío de solicitudes 
+email_confirmaciones VARCHAR(200) Correo para recibir confirmaciones 
+telefono, contacto VARCHAR(100) Datos de contacto 
+sla_horas_respuesta INTEGER SLA de respuesta pactado 
+categoria (solo hotel) INTEGER 1-5 Categoría en estrellas del hotel 
+ciudad (solo hotel) VARCHAR(100) Ciudad donde está ubicado el hotel 
+activo BOOLEAN Si está activo como proveedor 
+ 
+3.2 Tablas de proceso (transacciones) 
+ 
+solicitudes_viaje 
+Campo Tipo Descripción 
+id_solicitud UUID / PK Identificador único de solicitud 
+id_empresa, id_empleado UUID / FK Empresa y solicitante 
+tipo_solicitud ENUM individual / grupal / evento 
+origen, destino VARCHAR(100) Ciudad o aeropuerto de origen y destino 
+fecha_viaje_ida, 
+fecha_viaje_vuelta DATE Fechas solicitadas 
+incluye_hospedaje BOOLEAN Si activa el Flujo B de hospedaje 
+flujo_aprobacion BOOLEAN Si esta solicitud requiere aprobación 
+justificacion_negocio TEXT Motivo del viaje 
+estado_solicitud ENUM 
+borrador / enviado / cotizando / seleccionado / 
+aprobado / rechazado / confirmado / completado / 
+cancelado 
+nombre_evento (grupal) VARCHAR(200) Nombre del evento para cargas masivas 
+fecha_creacion TIMESTAMP Cuándo se creó la solicitud 
+ 
+cotizaciones_vuelo 
+Campo Tipo Descripción 
+id_cotizacion UUID / PK Identificador de cotización 
+id_solicitud, id_agencia UUID / FK Solicitud y agencia que cotiza 
+opcion_numero INTEGER Número de alternativa (1, 2, 3...) 
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 7 
+aerolinea, nro_vuelo_ida, 
+nro_vuelo_vuelta VARCHAR Datos del vuelo 
+fecha/hora salida y llegada 
+ida/vuelta DATETIME Itinerario completo IDA y VUELTA 
+tarifa_tipo, tarifa_usd VARCHAR / DECIMAL Tipo de tarifa (LIGHT/FLEX) y monto en USD 
+incluye_equipaje, 
+permite_cambios BOOLEAN Condiciones de la tarifa 
+penalidad_cambio_usd DECIMAL Costo de penalidad por cambio 
+pros, contras TEXT Generados automáticamente por IA 
+seleccionada BOOLEAN Si fue la opción elegida por el responsable 
+ 
+cotizaciones_hotel 
+Campo Tipo Descripción 
+id_cot_hotel UUID / PK Identificador de cotización 
+id_solicitud, id_hotel UUID / FK Solicitud y hotel que cotiza 
+tipo_habitacion VARCHAR(100) Simple, doble, suite, etc. 
+tarifa_noche_usd DECIMAL Tarifa por noche en USD 
+fecha_checkin, 
+fecha_checkout DATE Fechas de hospedaje 
+incluye_desayuno BOOLEAN Si incluye desayuno 
+politica_cancelacion TEXT Términos de cancelación del hotel 
+fecha_limite_decision DATETIME Fecha límite para confirmar o perder la cotización 
+pros, contras TEXT Generados automáticamente por IA 
+seleccionada BOOLEAN Si fue la opción elegida 
+ 
+aprobaciones y reservas_confirmadas 
+Campo Tipo Descripción 
+id_aprobacion UUID / PK Identificador de decisión de aprobación 
+id_solicitud, id_aprobador UUID / FK Solicitud y quién aprueba 
+tipo ENUM vuelo / hotel / cambio / cancelacion 
+decision ENUM aprobado / rechazado / pendiente 
+motivo_rechazo TEXT Obligatorio cuando se rechaza 
+implica_nueva_busqueda BOOLEAN Si el rechazo requiere iniciar nueva solicitud 
+tiempo_respuesta_horas DECIMAL Horas que tardó el aprobador en responder 
+fecha_decision TIMESTAMP Cuándo se tomó la decisión 
+ 
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 8 
+3.3 Tablas de seguimiento y trazabilidad 
+ 
+Tabla Campos clave Propósito 
+historial_estados 
+id_solicitud, estado_anterior, 
+estado_nuevo, id_usuario, 
+fecha, comentario 
+Trazabilidad completa de cada cambio de 
+estado de una solicitud 
+comunicaciones 
+id_solicitud, tipo, destinatario, 
+asunto, cuerpo, fecha_envio, 
+estado 
+Registro de todos los correos, SMS y 
+notificaciones enviadas 
+seguimiento_confirmaciones 
+id_reserva, proveedor_tipo, 
+fecha_limite, 
+recordatorios_enviados, 
+confirmada, fecha_confirmacion 
+Control del SLA de confirmación de 
+agencia y hoteles 
+alertas_sla 
+id_solicitud, tipo_alerta, 
+horas_sin_respuesta, 
+responsable_notificado, 
+escalado 
+Registro de alertas enviadas por 
+incumplimiento de SLA 
+cargas_masivas 
+id_empresa, nombre_evento, 
+archivo_fuente, total_registros, 
+procesados_ok, con_errores, 
+estado_carga 
+Control de importaciones masivas de 
+empleados para eventos grupales 
+cambios_cancelaciones 
+id_reserva, tipo, motivo, 
+penalidad_estimada, 
+estado_aprobacion, 
+gestionado_con_proveedor 
+Registro de todas las modificaciones post-
+confirmación 
+  
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 9 
+4. Arquitectura de la Solución 
+La solución se estructura en cuatro capas independientes que se comunican entre sí. Esta separación 
+permite reemplazar o actualizar cada capa sin afectar las demás. 
+ 
+4.1 Capa de acceso — usuarios 
+Todos los usuarios acceden a través de su navegador web (Chrome, Edge, Safari) desde cualquier 
+dispositivo: PC, tableta o celular. No se requiere instalar ninguna aplicación. El acceso es mediante la cuenta 
+corporativa de Microsoft 365 (Azure AD), por lo que los empleados usan su misma contraseña de Outlook. 
+ 
+Tipo de usuario Acceso Dispositivo principal 
+Empleado solicitante Portal web de solicitudes y consulta de 
+itinerario PC o celular 
+Responsable de viajes Panel completo de gestión, cuadros 
+comparativos, confirmaciones PC o tableta 
+Jefe aprobador Botones Aprobar/Rechazar directo en 
+Outlook — sin abrir otra app Celular (Outlook mobile) 
+Agencia / Hotel Portal de proveedores para ingresar 
+cotizaciones (Fase 2) PC 
+ 
+4.2 Capa frontend — portal web responsivo (PWA) 
+La aplicación web es una PWA (Progressive Web App): se comporta como una app nativa en celular y 
+tableta pero vive en el navegador. No requiere descarga desde App Store ni Google Play. 
+• Portal del empleado: formulario de solicitud de viaje, consulta de estado de su solicitud, visualización de 
+itinerario confirmado. 
+• Panel de gestión de viajes: vista de todas las solicitudes, cuadros comparativos, selección de alternativas, 
+confirmaciones, alertas SLA, carga masiva de Excel. 
+• App de aprobación: diseñada para ser usada desde celular con un solo toque. También funciona vía correo 
+Outlook con botones directos. 
+• Portal de proveedores (Fase 2): los hoteles ingresan sus cotizaciones directamente al sistema, sin necesidad de 
+enviar correos. 
+ 
+4.3 Capa backend — motor del sistema 
+El backend se compone de tres elementos principales: 
+ 
+Componente Tecnología Función 
+Motor de flujos n8n self-hosted 
+Orquesta todos los flujos A, B y C. Recibe 
+webhooks, envía correos, llama a Claude 
+API, ejecuta lógica condicional, gestiona 
+SLA. 
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 10 
+API REST Node.js + Express 
+Expone endpoints para el frontend. Gestiona 
+autenticación, permisos y comunicación con 
+la base de datos. 
+Generador IA Claude API (Anthropic) 
+Analiza las alternativas de vuelo y hotel 
+recibidas y genera automáticamente los 
+cuadros comparativos con pros y contras en 
+lenguaje ejecutivo. 
+Motor de correos SendGrid o Resend 
+Envía correos HTML con plantillas 
+profesionales, botones de aprobación con 
+un clic y seguimiento de apertura. 
+ 
+4.4 Capa de datos 
+Componente Tecnología Función 
+Base de datos principal PostgreSQL 
+Almacena todas las tablas del sistema. 
+Relacional, robusto, gratuito y ampliamente 
+soportado. 
+Almacenamiento de 
+archivos Cloudflare R2 o AWS S3 
+Guarda PDFs de cotizaciones, tickets, 
+confirmaciones y archivos Excel de carga 
+masiva. 
+Autenticación Azure Active Directory 
+SSO con Microsoft 365. Empleados entran 
+con su cuenta de Outlook sin nueva 
+contraseña. 
+  
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 11 
+5. Stack Tecnológico Recomendado 
+La selección de herramientas se basa en el perfil de FARMEX: menos de 100 usuarios, Microsoft 365 ya 
+contratado, sin equipo técnico interno definido, y necesidad de control total del flujo de negocio. 
+ 
+Capa Herramienta principal Alternativa Justificación 
+Frontend web React + Vite (PWA) Next.js / Vue 3 
+Amplio ecosistema, excelente en 
+móvil, base del portal empleado ya 
+construida 
+UI / Estilos Tailwind CSS + 
+shadcn/ui Ant Design / MUI 
+Componentes listos (tablas, 
+formularios, modales) con diseño 
+profesional 
+Motor de flujos n8n self-hosted Temporal.io / BullMQ 
+Open source (licencia $0), visual, 
+integra Outlook, Teams, Excel, 
+Claude API de forma nativa 
+Backend / API Node.js + Express Python FastAPI / 
+Laravel 
+Alta demanda de desarrolladores, 
+rápido de desarrollar, ideal para 
+APIs REST 
+Base de datos PostgreSQL MySQL 
+Robusto, gratuito, excelente para 
+flujos relacionales con muchas 
+tablas FK 
+Autenticación Azure AD (M365) Auth0 / Supabase Auth 
+Empleados usan su cuenta de 
+Outlook actual. Cero fricción de 
+adopción 
+Correos SendGrid o Resend AWS SES / Mailgun 
+Plantillas HTML, botones de 
+aprobación 1 clic, seguimiento de 
+apertura 
+IA cuadros Claude API (Anthropic) OpenAI GPT-4o 
+Genera pros y contras en lenguaje 
+ejecutivo. ~$0.05-0.10 por cuadro 
+comparativo 
+Archivos / PDFs Cloudflare R2 AWS S3 
+Sin costo de egreso, almacena 
+tickets, PDFs, cotizaciones y Excel 
+de carga masiva 
+Servidor / 
+Despliegue Hostinger KVM 2 VPS DigitalOcean / Railway 
+2 vCores, 8 GB RAM, 100 GB 
+NVMe, backups incluidos. Solo 
+$6.49/mes 
+Dominio / SSL Cloudflare DNS + SSL AWS Route 53 SSL gratuito, protección DDoS, 
+CDN. Ej: viajes.farmex.com.pe 
+ 
+5.1 Por qué n8n es la elección clave 
+n8n es el componente más estratégico de la arquitectura. Actúa como el cerebro que conecta todos los 
+demás sistemas. Sus ventajas específicas para FARMEX son: 
+• Licencia open source: costo de licencia $0 para siempre, sin límite de usuarios ni workflows. 
+• Integración nativa con Microsoft: nodos nativos para Outlook, Teams, Excel y OneDrive. Los jefes aprueban 
+desde Outlook en su celular con un botón, sin abrir otra aplicación. 
+• Integración nativa con Claude API: llama a la IA para generar cuadros comparativos automáticamente con un 
+solo nodo configurado. 
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 12 
+• Visual y auditable: los flujos se pueden ver como diagrama visual, facilitando el mantenimiento y la auditoría sin 
+depender de código oculto. 
+• Manejo de errores y reintentos: si un correo falla o una API no responde, n8n reintenta automáticamente y 
+registra el error. 
+ 
+Comparación de costo crítica 
+Power Automate Premium (Microsoft): $15/usuario/mes × 100 usuarios = $1,500/mes = $18,000/año. n8n self-
+hosted: $0 de licencia + $6.49/mes de servidor = $78/año. Ahorro anual: ~$17,900 USD. 
+  
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 13 
+6. Costos Operativos Mensuales 
+A continuación se detalla el costo operativo mensual completo del sistema una vez implementado. Estos son 
+costos recurrentes, no de desarrollo. 
+ 
+Componente Proveedor Costo/mes Notas 
+Licencia n8n Open source $0.00 Para siempre, sin límite 
+de usuarios 
+Servidor VPS (n8n + 
+PostgreSQL + API) Hostinger KVM 2 $6.49 
+2 vCores, 8 GB RAM, 
+100 GB NVMe, backups 
+incluidos 
+Dominio .com.pe (prorrateado) NIC Perú / Cloudflare ~$3.00 
+viajes.farmex.com.pe. 
+SSL gratuito con 
+Cloudflare 
+Correos transaccionales SendGrid / Resend $0-5.00 Hasta 3,000 correos/mes 
+gratuito en Resend 
+Claude API (cuadros 
+comparativos IA) Anthropic $15-30.00 
+~$0.05-0.10 por cuadro. 
+Variable según volumen 
+de solicitudes 
+Almacenamiento archivos (R2) Cloudflare R2 $0-3.00 
+10 GB gratis/mes. PDFs, 
+tickets, Excel de carga 
+masiva 
+TOTAL MENSUAL OPERATIVO  $25-47 Todo incluido, sin costos 
+ocultos 
+ 
+6.1 Requisitos de servidor verificados 
+n8n no es intensivo en CPU. El componente crítico es la RAM. Para el volumen de FARMEX (menos de 100 
+usuarios, 5 flujos automatizados, picos moderados de uso): 
+• Mínimo para producción: 2 vCPU, 4 GB RAM, 25 GB SSD NVMe, Ubuntu 24 LTS. 
+• Recomendado Hostinger KVM 2: 2 vCores, 8 GB RAM, 100 GB NVMe — margen cómodo para crecimiento. 
+• Hostinger incluye backups semanales automáticos, firewall y asistente IA de administración sin costo adicional. 
+ 
+6.2 Comparación de costos anuales 
+Opción Costo/mes Costo/año Diferencia vs n8n 
+n8n self-hosted (recomendado) $25-47 $300-564 Referencia 
+Power Automate Premium 
+(Microsoft) $1,500 $18,000 ~$17,500 más caro 
+SaaS global (TravelPerk / Navan) $1,500-5,000 $18,000-60,000 ~$17,500-59,500 más 
+caro 
+Desarrollo a medida sin n8n $50-200 $600-2,400 Similar, más complejo 
+de mantener 
+  
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 14 
+7. Plan de Implementación por Fases 
+La implementación se divide en cuatro fases progresivas. Cada fase entrega valor inmediato y es 
+independiente de las siguientes. 
+ 
+Fase Duración Entregables principales Detalle 
+Fase 1 MVP 8-10 semanas 
+Formulario de solicitud, flujo 
+con/sin aprobación, correo a 
+agencia, cuadro comparativo 
+básico, portal empleado 
+Base de datos con tablas core. 
+Autenticación Azure AD. Login con 
+cuenta Office. Aprobación por botón en 
+Outlook. Portal web responsivo. 
+Fase 2 
+Hospedaje y 
+SLA 
+6 semanas 
+Flujo B de hospedaje, cuadros 
+comparativos de hotel con IA, 
+seguimiento SLA automático 
+con alertas 
+Portal de proveedores para ingresar 
+cotizaciones directamente. Monitor de 
+SLA con escalamiento automático por 
+Teams. 
+Fase 3 
+Grupos y 
+eventos 
+4 semanas 
+Carga masiva de Excel, gestión 
+de grupos por evento, 
+dashboard de eventos 
+Validación masiva de DNI y datos de 
+empleados. Generación automática de 
+solicitudes individuales desde carga 
+grupal. Reporte de errores de carga. 
+Fase 4 
+Cambios y 
+reportes 
+4 semanas 
+Flujo C de cambios y 
+cancelaciones, cálculo de 
+penalidades, reportes 
+ejecutivos, notificaciones push 
+Dashboard gerencial con KPIs de 
+viajes. Historial completo de decisiones. 
+Notificaciones push en celular del 
+empleado (PWA). 
+ 
+7.1 Primer paso recomendado — esta semana 
+Antes de contratar cualquier consultor o tomar decisiones técnicas, se recomienda realizar las siguientes 
+acciones inmediatas: 
+23. Verificar qué plan de Microsoft 365 tiene FARMEX actualmente (Business Basic, Business Premium, E3 o E5). 
+Los planes Premium y E3/E5 ya incluyen funcionalidades que se pueden aprovechar en el desarrollo. 
+24. Confirmar si el dominio farmex.com.pe está disponible para el subdominio viajes.farmex.com.pe. 
+25. Definir el responsable técnico del lado de FARMEX que coordinará con el consultor externo (no necesita saber 
+de programación, solo gestionar el proyecto). 
+26. Solicitar 2-3 cotizaciones a consultores certificados en n8n o en desarrollo web con React/Node.js, presentando 
+este documento como brief técnico. 
+ 
+7.2 Perfil del consultor recomendado 
+Para la Fase 1 (MVP) se recomienda un consultor o pequeña empresa con las siguientes características: 
+• Experiencia comprobada con n8n (pedir ejemplos de flujos implementados). 
+• Conocimiento de React o similar para el portal web. 
+• Experiencia con PostgreSQL y APIs REST. 
+• Bonus: experiencia con integraciones de Microsoft 365 / Azure AD. 
+• Tarifa de mercado en Perú: S/. 3,000-6,000 por mes. El MVP (Fase 1) debería completarse en 2-3 meses. 
+  
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 15 
+8. Acceso y Despliegue 
+El sistema está diseñado para ser accesible desde cualquier dispositivo sin instalación, integrándose con la 
+infraestructura Microsoft 365 que ya tiene FARMEX. 
+ 
+8.1 Cómo acceden los empleados 
+Dispositivo Cómo accede Experiencia 
+PC / Laptop Abre Chrome/Edge y va a 
+viajes.farmex.com.pe 
+Portal web completo con todas las 
+funcionalidades 
+Tableta Abre navegador y va a la URL de la 
+empresa Interfaz adaptada a pantalla táctil 
+Celular Puede guardar el ícono en pantalla de 
+inicio (PWA, sin descargar) 
+Se comporta como app nativa. 
+Notificaciones push incluidas en Fase 4 
+Jefe aprobador (celular) Recibe correo en Outlook mobile con 
+botones Aprobar/Rechazar 
+Aprueba o rechaza con 1 toque, sin 
+abrir ninguna otra app 
+ 
+8.2 Integración con Microsoft 365 
+• Outlook: correos de aprobación con botones directos, notificaciones de estado, confirmaciones de reserva. 
+• Teams: alertas de SLA, notificaciones de solicitudes pendientes, escalamientos. 
+• Azure AD: login único con cuenta corporativa — sin crear nuevas contraseñas. 
+• Excel / OneDrive: carga masiva de empleados para eventos grupales directamente desde Excel. 
+ 
+8.3 Diagrama de despliegue resumido 
+EMPLEADOS / JEFES / RESPONSABLE DE VIAJES 
+PC, Tableta, Celular — Navegador web (no requiere instalación) 
+  ↓  HTTPS (conexión segura) 
+CLOUDFLARE — DNS + SSL gratuito + protección DDoS 
+  ↓ 
+HOSTINGER KVM 2 VPS ($6.49/mes) — Ubuntu 24 LTS 
+   • Portal web React (frontend) 
+   • API REST Node.js (backend) 
+   • n8n self-hosted (motor de flujos) 
+   • PostgreSQL (base de datos) 
+  ↓  Integraciones externas vía API 
+   • Azure AD (login Microsoft) | Claude API (IA cuadros) | SendGrid (correos) | Cloudflare R2 (archivos) 
+  
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 16 
+9. Alertas y Riesgos del Proyecto 
+ 
+Riesgo Probabilidad Impacto Mitigación 
+Consultor sin experiencia 
+real en n8n Media Alto Pedir demostración de flujos n8n 
+implementados antes de contratar 
+Adopción baja por parte de 
+los empleados Media Alto 
+El sistema usa la cuenta de Office que 
+ya tienen. Capacitación de 30 min es 
+suficiente. 
+Agencia de viajes no se 
+adapta al nuevo flujo Baja Medio 
+El sistema usa correo electrónico 
+estándar. No requiere cambio de 
+herramienta de la agencia. 
+Caída del servidor VPS Baja Alto Hostinger garantiza 99.9% uptime. 
+Backups semanales incluidos. 
+Costo de Claude API excede 
+presupuesto Baja Bajo 
+Configurar límite de gasto mensual en 
+Anthropic. En meses sin eventos, el 
+costo es mínimo. 
+Scope creep en el desarrollo Alta Alto 
+Respetar la separación por fases. No 
+iniciar Fase 2 hasta que Fase 1 esté 
+en producción. 
+ 
+9.1 Consideraciones de seguridad y privacidad 
+• Todos los datos del sistema residen en el servidor VPS contratado. No pasan por servidores de terceros 
+(excepto las APIs externas configuradas). 
+• La comunicación entre el navegador y el servidor es siempre HTTPS (SSL gratuito con Cloudflare). 
+• Los datos de los empleados (DNI, celular, itinerario) solo son visibles para el responsable de viajes y el propio 
+empleado. 
+• Los jefes aprobadores solo ven el cuadro comparativo de la solicitud que deben aprobar, no los datos de otros 
+empleados. 
+• Se recomienda configurar respaldo automático diario de la base de datos PostgreSQL a Cloudflare R2. 
+ 
+  
+FARMEX — Plan de Diseño TMS  |  Sistema de Gestión de Viajes Corporativos 
+Confidencial — Abril 2026 Página 17 
+10. Próximos Pasos 
+Una vez revisado y aprobado este documento, se recomienda seguir el siguiente plan de acción: 
+ 
+# Acción Detalle Responsable 
+1 Revisar y aprobar este 
+documento 
+Realizar observaciones, correcciones y 
+aprobación formal del plan de diseño 
+Pilar Pasco / Gerencia 
+FARMEX 
+2 Verificar plan Microsoft 365 
+Confirmar si el plan actual incluye 
+Power Apps / n8n o si necesita 
+upgrade 
+IT / Administración 
+FARMEX 
+3 Solicitar cotizaciones a 
+consultores 
+Contactar 2-3 consultores n8n / React / 
+Node.js entregando este documento 
+como brief 
+Pilar Pasco 
+4 Contratar servidor VPS Hostinger KVM 2 — $6.49/mes. Tarda 
+5 minutos en estar activo Consultor seleccionado 
+5 Inicio Fase 1 — MVP 
+Desarrollo del formulario de solicitud, 
+flujos y portal del empleado. Base del 
+portal HTML ya construida. 
+Consultor + Pilar Pasco 
+6 Piloto con grupo reducido Probar con 5-10 empleados de una 
+zona antes del despliegue completo Pilar Pasco + Consultor 
+7 Despliegue general 
+Capacitación de 30 min a empleados. 
+El sistema usa sus cuentas de Office 
+actuales. 
+Pilar Pasco 
+ 
+ 
+FARMEX S.A. — Sistema de Gestión de Viajes Corporativos 
+Documento preparado para revisión interna — Abril 2026 
