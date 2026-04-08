@@ -57,7 +57,7 @@ export default function NuevaSolicitud() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('empleados')
         .select('id_empleado, id_empresa')
         .eq('auth_user_id', session.user.id)
