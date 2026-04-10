@@ -19,9 +19,20 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchViajes = async () => {
       setLoading(true);
+
+      // 1. Obtener el id_empleado del usuario logueado
+      const { data: empData } = await supabase.rpc('get_mi_empleado');
+      if (!empData || empData.length === 0) {
+        setLoading(false);
+        return;
+      }
+      const idEmpleado = empData[0].id_empleado;
+
+      // 2. Traer SOLO las solicitudes de ese empleado
       const { data, error } = await supabase
         .from('solicitudes_viaje')
         .select('*')
+        .eq('id_empleado', idEmpleado)
         .order('fecha_creacion', { ascending: false });
 
       if (!error && data) {

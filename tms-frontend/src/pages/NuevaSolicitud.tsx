@@ -54,18 +54,11 @@ export default function NuevaSolicitud() {
 
   useEffect(() => {
     const fetchEmployeeContext = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      const { data, error } = await supabase.rpc('get_mi_empleado');
       
-      const { data } = await supabase
-        .from('empleados')
-        .select('id_empleado, id_empresa')
-        .eq('auth_user_id', session.user.id)
-        .single();
-        
-      if (data) {
-        setIdEmpleado(data.id_empleado);
-        setIdEmpresa(data.id_empresa);
+      if (!error && data && data.length > 0) {
+        setIdEmpleado(data[0].id_empleado);
+        setIdEmpresa(data[0].id_empresa);
       }
     };
     fetchEmployeeContext();
