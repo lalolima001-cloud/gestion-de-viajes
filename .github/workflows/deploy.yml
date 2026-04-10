@@ -19,13 +19,28 @@ jobs:
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
         script: |
+          # Asegurar que el directorio existe
+          mkdir -p /opt/gestion-de-viajes
           cd /opt/gestion-de-viajes
-          # Traer últimos cambios de Github
-          git pull origin main
           
-          # Detener contenedores, recompilar frontend y levantar con la versión productiva
+          # Inicializar git si no existe (primer despliegue)
+          if [ ! -d ".git" ]; then
+            git clone https://github.com/lalolima001-cloud/gestion-de-viajes.git .
+          fi
+
+          # Traer últimos cambios
+          git fetch origin main
+          git reset --hard origin/main
+          
+          # Validar existencia de .env antes de levantar
+          if [ ! -f ".env" ]; then
+            echo "ERROR: El archivo .env no existe en el servidor. El despliegue fallará."
+            exit 1
+          fi
+
+          # Detener y rebuild
           docker compose -f docker-compose.prod.yml down
           docker compose -f docker-compose.prod.yml up -d --build
           
-          # Limpiar imágenes sobrantes para liberar espacio en disco
+          # Limpieza
           docker image prune -f

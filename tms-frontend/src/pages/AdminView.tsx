@@ -74,7 +74,7 @@ export default function AdminView() {
   const [empError, setEmpError] = useState<string | null>(null);
   const [empSuccess, setEmpSuccess] = useState<string | null>(null);
   const [savingEmp, setSavingEmp] = useState(false);
-  const [formEmp, setFormEmp] = useState({ nombres: '', ap_paterno: '', email_corporativo: '', dni: '' });
+  const [formEmp, setFormEmp] = useState({ nombres: '', ap_paterno: '', email_corporativo: '', dni: '', is_admin: false });
 
   // --- CSV carga masiva ---
   const csvInputRef = useRef<HTMLInputElement>(null);
@@ -147,6 +147,7 @@ export default function AdminView() {
       ap_paterno: formEmp.ap_paterno.trim(),
       email_corporativo: formEmp.email_corporativo.trim().toLowerCase(),
       dni: formEmp.dni.trim() || null,
+      is_admin: formEmp.is_admin,
       id_empresa: ID_EMPRESA,
     });
 
@@ -158,7 +159,7 @@ export default function AdminView() {
       }
     } else {
       setEmpSuccess(`Empleado ${formEmp.nombres} ${formEmp.ap_paterno} creado. Cuando se registre en la app con ${formEmp.email_corporativo}, quedará vinculado automáticamente.`);
-      setFormEmp({ nombres: '', ap_paterno: '', email_corporativo: '', dni: '' });
+      setFormEmp({ nombres: '', ap_paterno: '', email_corporativo: '', dni: '', is_admin: false });
       fetchEmpleados();
     }
     setSavingEmp(false);
@@ -191,6 +192,24 @@ export default function AdminView() {
     if (!confirm(`¿Deseas ${accion} a ${emp.nombres} ${emp.ap_paterno}?`)) return;
     await supabase.from('empleados').update({ activo: !emp.activo }).eq('id_empleado', emp.id_empleado);
     fetchEmpleados();
+  };
+
+  const handleVincularManual = async (emp: Empleado) => {
+    const authId = prompt(`Ingresa el UUID de Supabase Auth para vincular a ${emp.email_corporativo}:\n(Puedes encontrarlo en el menú Authentication de Supabase)`);
+    if (!authId || authId.trim().length < 10) return;
+
+    setLoadingEmp(true);
+    const { error } = await supabase
+      .from('empleados')
+      .update({ auth_user_id: authId.trim() })
+      .eq('id_empleado', emp.id_empleado);
+
+    if (error) {
+      alert('Error al vincular: ' + error.message);
+    } else {
+      setEmpSuccess(`¡Vinculación manual exitosa para ${emp.nombres}!`);
+      fetchEmpleados();
+    }
   };
 
   // CSV parsing
@@ -454,6 +473,20 @@ export default function AdminView() {
               <input type="text" required placeholder="Apellido Paterno" value={formEmp.ap_paterno} onChange={e => setFormEmp(p => ({ ...p, ap_paterno: e.target.value }))} className="px-3 py-2 border rounded-xl" />
               <input type="email" required placeholder="Correo @farmex.com.pe" value={formEmp.email_corporativo} onChange={e => setFormEmp(p => ({ ...p, email_corporativo: e.target.value }))} className="px-3 py-2 border rounded-xl" />
               <input type="text" placeholder="DNI (opcional)" value={formEmp.dni} onChange={e => setFormEmp(p => ({ ...p, dni: e.target.value }))} className="px-3 py-2 border rounded-xl" />
+              
+              <div className="md:col-span-2 flex items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <input 
+                  type="checkbox" 
+                  id="is_admin_toggle"
+                  checked={formEmp.is_admin} 
+                  onChange={e => setFormEmp(p => ({ ...p, is_admin: e.target.checked }))} 
+                  className="w-5 h-5 text-blue-600 rounded cursor-pointer" 
+                />
+                <label htmlFor="is_admin_toggle" className="ml-3 text-sm font-semibold text-slate-700 cursor-pointer">
+                  Asignar Rol de Administrador <span className="text-xs font-normal text-slate-400 font-medium ml-1">(Podrá gestionar empleados y aprobar solicitudes)</span>
+                </label>
+              </div>
+
               <button type="submit" disabled={savingEmp} className="md:col-span-2 bg-blue-600 text-white font-semibold py-2.5 rounded-xl hover:bg-blue-700 transition-colors">Crear Empleado</button>
             </form>
           </div>
@@ -495,6 +528,17 @@ export default function AdminView() {
                           <span className={`text-xs font-bold px-2.5 py-1 rounded-full cursor-help ${!emp.activo ? 'bg-slate-200 text-slate-500' : emp.auth_user_id ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`} title={!emp.activo ? 'Deshabilitado' : emp.auth_user_id ? 'Vinculado' : 'Debe registrarse en la app'}>
                             {!emp.activo ? '❌ Inactivo' : emp.auth_user_id ? '✓ Activo' : '⏳ Sin cuenta'}
                           </span>
+                          
+                          {emp.activo && !emp.auth_user_id && (
+                            <button 
+                              onClick={() => handleVincularManual(emp)} 
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-100"
+                              title="Vincular manualmente con ID de Auth"
+                            >
+                              <BadgeCheck className="w-4 h-4" />
+                            </button>
+                          )}
+
                           <button onClick={() => handleToggleBaja(emp)} className={`p-2 rounded-lg ${!emp.activo ? 'text-green-600 hover:bg-green-50' : 'text-amber-500 hover:bg-amber-50'}`}>
                             {!emp.activo ? <UserCheck className="w-4 h-4" /> : <UserX className="w-4 h-4" />}
                           </button>
