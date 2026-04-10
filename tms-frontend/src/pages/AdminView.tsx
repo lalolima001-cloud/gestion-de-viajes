@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   ShieldAlert, CheckCircle, ArrowLeft, Loader2, Plane,
   AlertCircle, Users, UserPlus, Mail, BadgeCheck, Clock, Trash2,
-  Eye, X, Hotel, FileText, Calendar, MapPin
+  Eye, X, Hotel, FileText, Calendar, MapPin, Upload, Download,
+  UserX, UserCheck, TriangleAlert, XCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -37,6 +38,18 @@ interface Empleado {
   email_corporativo: string;
   dni: string | null;
   auth_user_id: string | null;
+  activo: boolean;
+}
+
+interface CsvRow {
+  nombres: string;
+  ap_paterno: string;
+  ap_materno: string;
+  email_corporativo: string;
+  dni: string;
+  cargo: string;
+  valid: boolean;
+  error: string;
 }
 
 type Tab = 'solicitudes' | 'empleados';
@@ -62,6 +75,13 @@ export default function AdminView() {
   const [empSuccess, setEmpSuccess] = useState<string | null>(null);
   const [savingEmp, setSavingEmp] = useState(false);
   const [formEmp, setFormEmp] = useState({ nombres: '', ap_paterno: '', email_corporativo: '', dni: '' });
+
+  // --- CSV carga masiva ---
+  const csvInputRef = useRef<HTMLInputElement>(null);
+  const [csvRows, setCsvRows] = useState<CsvRow[]>([]);
+  const [showCsvModal, setShowCsvModal] = useState(false);
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvImportResult, setCsvImportResult] = useState<{ ok: number; fail: number } | null>(null);
 
   // Parse direct action from URL (from n8n email)
   useEffect(() => {
@@ -90,7 +110,7 @@ export default function AdminView() {
     setLoadingEmp(true);
     const { data, error } = await supabase
       .from('empleados')
-      .select('id_empleado, nombres, ap_paterno, email_corporativo, dni, auth_user_id')
+      .select('id_empleado, nombres, ap_paterno, email_corporativo, dni, auth_user_id, activo')
       .eq('id_empresa', ID_EMPRESA)
       .order('nombres');
     if (!error && data) setEmpleados(data);
@@ -145,9 +165,96 @@ export default function AdminView() {
   };
 
   const handleEliminarEmpleado = async (id: string, nombre: string) => {
-    if (!confirm(`¿Eliminar a ${nombre}? Esta acción es irreversible.`)) return;
+    if (!confirm(`¿Eliminar a ${nombre}? Esta acción es irreversible y borrará todo su historial (solicitudes, cotizaciones, etc).`)) return;
+    
+    setEmpError(null);
+    setEmpSuccess(null);
+    
+    // Intentar borrar
     const { error } = await supabase.from('empleados').delete().eq('id_empleado', id);
-    if (!error) fetchEmpleados();
+    
+    if (error) {
+      console.error('Error deleting employee:', error);
+      if (error.code === '23503') {
+        setEmpError(`No se puede eliminar a "${nombre}" porque tiene historial de viajes. Para restringir su acceso, usa la opción "Dar de baja" en su lugar.`);
+      } else {
+        setEmpError(`Error al eliminar: ${error.message}`);
+      }
+    } else {
+      setEmpSuccess(`Empleado "${nombre}" eliminado permanentemente.`);
+      fetchEmpleados();
+    }
+  };
+
+  const handleToggleBaja = async (emp: Empleado) => {
+    const accion = emp.activo ? 'dar de baja' : 'reactivar';
+    if (!confirm(`¿Deseas ${accion} a ${emp.nombres} ${emp.ap_paterno}?`)) return;
+    await supabase.from('empleados').update({ activo: !emp.activo }).eq('id_empleado', emp.id_empleado);
+    fetchEmpleados();
+  };
+
+  // CSV parsing
+  const parseCsv = (text: string): CsvRow[] => {
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z_]/g, ''));
+    return lines.slice(1).map(line => {
+      const vals = line.split(',').map(v => v.trim());
+      const get = (col: string) => vals[headers.indexOf(col)] ?? '';
+      const email = get('email_corporativo').toLowerCase();
+      const nombres = get('nombres');
+      const ap_paterno = get('ap_paterno');
+      const valid = !!(nombres && ap_paterno && email && email.includes('@'));
+      return {
+        nombres, ap_paterno,
+        ap_materno: get('ap_materno'),
+        email_corporativo: email,
+        dni: get('dni'),
+        cargo: get('cargo'),
+        valid,
+        error: valid ? '' : 'Faltan campos obligatorios (nombres, ap_paterno, email)',
+      };
+    });
+  };
+
+  const handleCsvFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const rows = parseCsv(text);
+      setCsvRows(rows);
+      setShowCsvModal(true);
+      setCsvImportResult(null);
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
+  };
+
+  const handleCsvImport = async () => {
+    setCsvImporting(true);
+    const validRows = csvRows.filter(r => r.valid);
+    let ok = 0; let fail = 0;
+    for (const row of validRows) {
+      const { error } = await supabase.from('empleados').insert({
+        nombres: row.nombres, ap_paterno: row.ap_paterno, ap_materno: row.ap_materno || null,
+        email_corporativo: row.email_corporativo, dni: row.dni || null, cargo: row.cargo || null,
+        id_empresa: ID_EMPRESA,
+      });
+      if (error) fail++; else ok++;
+    }
+    setCsvImportResult({ ok, fail });
+    setCsvImporting(false);
+    if (ok > 0) fetchEmpleados();
+  };
+
+  const downloadTemplate = () => {
+    const csv = 'nombres,ap_paterno,ap_materno,email_corporativo,dni,cargo\nJuan,García,López,jgarcia@farmex.com.pe,12345678,Analista\nMaría,Torres,,mtorres@farmex.com.pe,,Coordinadora';
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'plantilla_empleados.csv'; a.click();
+    URL.revokeObjectURL(url);
   };
 
   const estadoColor: Record<string, string> = {
@@ -168,7 +275,6 @@ export default function AdminView() {
       {detalle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setDetalle(null)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={e => e.stopPropagation()}>
-            {/* Header */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-5 flex justify-between items-center">
               <div>
                 <p className="text-blue-100 text-xs font-medium mb-0.5">Detalle de Solicitud</p>
@@ -183,17 +289,13 @@ export default function AdminView() {
             </div>
 
             <div className="p-6 space-y-4">
-              {/* Estado */}
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-slate-500">Estado</span>
                 <span className={`text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide ${estadoColor[detalle.estado_solicitud] ?? 'bg-slate-100 text-slate-600'}`}>
                   {detalle.estado_solicitud}
                 </span>
               </div>
-
               <hr className="border-slate-100" />
-
-              {/* Pasajero */}
               <div className="flex items-start space-x-3">
                 <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                   <Users className="w-4 h-4" />
@@ -203,21 +305,15 @@ export default function AdminView() {
                   <p className="font-semibold text-slate-800">{detalle.empleados?.nombres} {detalle.empleados?.ap_paterno}</p>
                 </div>
               </div>
-
-              {/* Ruta */}
               <div className="flex items-start space-x-3">
                 <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                   <MapPin className="w-4 h-4" />
                 </div>
                 <div>
                   <p className="text-xs text-slate-400 font-medium">Ruta</p>
-                  <p className="font-semibold text-slate-800">{AEROPUERTOS[detalle.origen] ?? detalle.origen}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">→</p>
-                  <p className="font-semibold text-slate-800">{AEROPUERTOS[detalle.destino] ?? detalle.destino}</p>
+                  <p className="font-semibold text-slate-800">{AEROPUERTOS[detalle.origen] ?? detalle.origen} → {AEROPUERTOS[detalle.destino] ?? detalle.destino}</p>
                 </div>
               </div>
-
-              {/* Fechas */}
               <div className="flex items-start space-x-3">
                 <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                   <Calendar className="w-4 h-4" />
@@ -225,43 +321,22 @@ export default function AdminView() {
                 <div>
                   <p className="text-xs text-slate-400 font-medium">Fechas</p>
                   <p className="font-semibold text-slate-800">Ida: {detalle.fecha_viaje_ida}</p>
-                  {detalle.fecha_viaje_vuelta && (
-                    <p className="font-semibold text-slate-800">Retorno: {detalle.fecha_viaje_vuelta}</p>
-                  )}
+                  {detalle.fecha_viaje_vuelta && <p className="font-semibold text-slate-800">Retorno: {detalle.fecha_viaje_vuelta}</p>}
                 </div>
               </div>
-
-              {/* Hospedaje */}
-              <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Hotel className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 font-medium">Hospedaje</p>
-                  <p className="font-semibold text-slate-800">{detalle.incluye_hospedaje ? '✓ Incluye hospedaje' : 'Sin hospedaje'}</p>
-                </div>
-              </div>
-
-              {/* Justificación */}
               {detalle.justificacion_negocio && (
                 <div className="flex items-start space-x-3">
                   <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                     <FileText className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs text-slate-400 font-medium">Justificación de negocio</p>
+                    <p className="text-xs text-slate-400 font-medium">Justificación</p>
                     <p className="text-sm text-slate-700 leading-relaxed">{detalle.justificacion_negocio}</p>
                   </div>
                 </div>
               )}
-
-              {/* Fecha creación */}
-              <div className="text-xs text-slate-400 text-right">
-                Enviado: {new Date(detalle.fecha_creacion).toLocaleString('es-PE')}
-              </div>
             </div>
 
-            {/* Acciones en el modal */}
             {detalle.estado_solicitud === 'enviado' && (
               <div className="px-6 pb-6 grid grid-cols-2 gap-3">
                 <button
@@ -287,56 +362,36 @@ export default function AdminView() {
         <p className="text-slate-500">Gestión de aprobaciones de viajes y empleados FARMEX TMS.</p>
       </div>
 
-      {/* Tabs */}
       <div className="flex space-x-2 mb-6">
         <button
           onClick={() => setActiveTab('solicitudes')}
           className={`flex items-center px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
-            activeTab === 'solicitudes'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+            activeTab === 'solicitudes' ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <Plane className="w-4 h-4 mr-2" />
-          Solicitudes Pendientes
+          <Plane className="w-4 h-4 mr-2" /> Solicitudes Pendientes
           {!loading && solicitudes.length > 0 && (
-            <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-full ${
-              activeTab === 'solicitudes' ? 'bg-white text-blue-600' : 'bg-amber-100 text-amber-700'
-            }`}>{solicitudes.length}</span>
+            <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-full ${activeTab === 'solicitudes' ? 'bg-white text-blue-600' : 'bg-amber-100 text-amber-700'}`}>{solicitudes.length}</span>
           )}
         </button>
         <button
           onClick={() => setActiveTab('empleados')}
           className={`flex items-center px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
-            activeTab === 'empleados'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+            activeTab === 'empleados' ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <Users className="w-4 h-4 mr-2" />
-          Gestión de Empleados
+          <Users className="w-4 h-4 mr-2" /> Gestión de Empleados
         </button>
       </div>
 
-      {/* ===== TAB: SOLICITUDES ===== */}
       {activeTab === 'solicitudes' && (
         <>
-          {errorMsg && (
-            <div className="mb-4 bg-red-50 text-red-700 p-4 rounded-xl flex items-center border border-red-100">
-              <ShieldAlert className="w-5 h-5 mr-2 flex-shrink-0" /><p className="font-medium text-sm">{errorMsg}</p>
-            </div>
-          )}
-          {successMsg && (
-            <div className="mb-4 bg-green-50 text-green-700 p-4 rounded-xl flex items-center border border-green-100">
-              <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0" /><p className="font-medium text-sm">{successMsg}</p>
-            </div>
-          )}
+          {errorMsg && <div className="mb-4 bg-red-50 text-red-700 p-4 rounded-xl border border-red-100 flex items-center"><ShieldAlert className="w-5 h-5 mr-2" />{errorMsg}</div>}
+          {successMsg && <div className="mb-4 bg-green-50 text-green-700 p-4 rounded-xl border border-green-100 flex items-center"><CheckCircle className="w-5 h-5 mr-2" />{successMsg}</div>}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="bg-slate-50 p-4 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="font-bold text-slate-700">Solicitudes Pendientes de Aprobación</h2>
-              <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-lg">
-                {loading ? '...' : `${solicitudes.length} Pendiente(s)`}
-              </span>
+              <h2 className="font-bold text-slate-700">Solicitudes Pendientes</h2>
+              <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-lg">{loading ? '...' : `${solicitudes.length} Pendiente(s)`}</span>
             </div>
             <div className="p-6">
               {loading ? (
@@ -353,42 +408,19 @@ export default function AdminView() {
                       <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
                         <div>
                           <h3 className="font-bold text-slate-800 text-lg uppercase flex items-center">
-                            <Plane className="w-5 h-5 mr-2 text-blue-500" />
-                            {sol.origen} &rarr; {sol.destino}
+                            <Plane className="w-5 h-5 mr-2 text-blue-500" /> {sol.origen} &rarr; {sol.destino}
                           </h3>
-                          <p className="text-sm font-medium text-slate-500 mt-1">
-                            Pasajero: {sol.empleados?.nombres} {sol.empleados?.ap_paterno}
-                          </p>
+                          <p className="text-sm font-medium text-slate-500 mt-1">Pasajero: {sol.empleados?.nombres} {sol.empleados?.ap_paterno}</p>
                         </div>
                         <div className="mt-2 md:mt-0 text-left md:text-right">
                           <span className="text-xs bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded-full uppercase tracking-wider">{sol.tipo_solicitud}</span>
                           <p className="text-sm font-semibold text-slate-700 mt-2">Salida: {sol.fecha_viaje_ida}</p>
                         </div>
                       </div>
-                      <hr className="border-slate-100 my-4" />
                       <div className="grid grid-cols-3 gap-3">
-                        <button
-                          onClick={() => setDetalle(sol)}
-                          className="col-span-3 md:col-span-1 uppercase tracking-wide text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center"
-                        >
-                          <Eye className="w-4 h-4 mr-2" /> Ver Detalle
-                        </button>
-                        <button
-                          onClick={() => handleDecision(sol.id_solicitud, 'aprobado')}
-                          disabled={processingId === sol.id_solicitud}
-                          className="uppercase tracking-wide text-sm bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-bold py-2.5 px-6 rounded-lg transition-colors flex items-center justify-center"
-                        >
-                          {processingId === sol.id_solicitud ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                          Aprobar
-                        </button>
-                        <button
-                          onClick={() => handleDecision(sol.id_solicitud, 'rechazado')}
-                          disabled={processingId === sol.id_solicitud}
-                          className="uppercase tracking-wide text-sm bg-red-100 hover:bg-red-200 text-red-700 font-bold py-2.5 px-6 rounded-lg transition-colors flex items-center justify-center"
-                        >
-                          {processingId === sol.id_solicitud ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <AlertCircle className="w-4 h-4 mr-2" />}
-                          Denegar
-                        </button>
+                        <button onClick={() => setDetalle(sol)} className="tracking-wide text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-lg flex items-center justify-center"><Eye className="w-4 h-4 mr-2" /> Detalle</button>
+                        <button onClick={() => handleDecision(sol.id_solicitud, 'aprobado')} disabled={processingId === sol.id_solicitud} className="tracking-wide text-xs bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg flex items-center justify-center">Aprobar</button>
+                        <button onClick={() => handleDecision(sol.id_solicitud, 'rechazado')} disabled={processingId === sol.id_solicitud} className="tracking-wide text-xs bg-red-100 hover:bg-red-200 text-red-700 font-bold py-2 rounded-lg flex items-center justify-center">Denegar</button>
                       </div>
                     </div>
                   ))}
@@ -399,75 +431,33 @@ export default function AdminView() {
         </>
       )}
 
-      {/* ===== TAB: EMPLEADOS ===== */}
       {activeTab === 'empleados' && (
         <div className="space-y-6">
-          {/* Formulario crear empleado */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-            <h2 className="font-bold text-slate-800 mb-1 flex items-center">
-              <UserPlus className="w-5 h-5 mr-2 text-blue-500" /> Registrar Nuevo Empleado
-            </h2>
-            <p className="text-sm text-slate-500 mb-5">El empleado podrá registrarse en la app con este correo y quedará vinculado automáticamente.</p>
-
-            {empError && (
-              <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm font-medium border border-red-100">{empError}</div>
-            )}
-            {empSuccess && (
-              <div className="mb-4 p-4 bg-green-50 text-green-700 rounded-lg text-sm font-medium border border-green-100 flex items-start">
-                <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />{empSuccess}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+              <div>
+                <h2 className="font-bold text-slate-800 flex items-center"><UserPlus className="w-5 h-5 mr-2 text-blue-500" /> Registrar Empleado</h2>
+                <p className="text-sm text-slate-500 mt-0.5">El empleado se vinculará automáticamente al registrarse.</p>
               </div>
-            )}
+              <div className="flex gap-2">
+                <button onClick={downloadTemplate} className="text-xs font-semibold text-slate-600 border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-50">Plantilla CSV</button>
+                <button onClick={() => csvInputRef.current?.click()} className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-2 rounded-xl hover:bg-blue-100">Carga Masiva</button>
+                <input ref={csvInputRef} type="file" accept=".csv" className="hidden" onChange={handleCsvFile} />
+              </div>
+            </div>
+
+            {empError && <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100">{empError}</div>}
+            {empSuccess && <div className="mb-4 p-4 bg-green-50 text-green-700 rounded-lg text-sm border border-green-100 flex items-start"><CheckCircle className="w-5 h-5 mr-2 mt-0.5" />{empSuccess}</div>}
 
             <form onSubmit={handleCrearEmpleado} className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Nombres *</label>
-                <input
-                  type="text" required value={formEmp.nombres}
-                  onChange={e => setFormEmp(p => ({ ...p, nombres: e.target.value }))}
-                  placeholder="Eduardo"
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Apellido Paterno *</label>
-                <input
-                  type="text" required value={formEmp.ap_paterno}
-                  onChange={e => setFormEmp(p => ({ ...p, ap_paterno: e.target.value }))}
-                  placeholder="Aramburu"
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Correo Corporativo *</label>
-                <input
-                  type="email" required value={formEmp.email_corporativo}
-                  onChange={e => setFormEmp(p => ({ ...p, email_corporativo: e.target.value }))}
-                  placeholder="nombre@farmex.com.pe"
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">DNI <span className="text-slate-400 font-normal">(opcional)</span></label>
-                <input
-                  type="text" value={formEmp.dni}
-                  onChange={e => setFormEmp(p => ({ ...p, dni: e.target.value }))}
-                  placeholder="12345678" maxLength={8}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <button
-                  type="submit" disabled={savingEmp}
-                  className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-2.5 px-8 rounded-xl transition-colors flex items-center justify-center"
-                >
-                  {savingEmp ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <UserPlus className="w-4 h-4 mr-2" />}
-                  {savingEmp ? 'Guardando...' : 'Crear Empleado'}
-                </button>
-              </div>
+              <input type="text" required placeholder="Nombres" value={formEmp.nombres} onChange={e => setFormEmp(p => ({ ...p, nombres: e.target.value }))} className="px-3 py-2 border rounded-xl" />
+              <input type="text" required placeholder="Apellido Paterno" value={formEmp.ap_paterno} onChange={e => setFormEmp(p => ({ ...p, ap_paterno: e.target.value }))} className="px-3 py-2 border rounded-xl" />
+              <input type="email" required placeholder="Correo @farmex.com.pe" value={formEmp.email_corporativo} onChange={e => setFormEmp(p => ({ ...p, email_corporativo: e.target.value }))} className="px-3 py-2 border rounded-xl" />
+              <input type="text" placeholder="DNI (opcional)" value={formEmp.dni} onChange={e => setFormEmp(p => ({ ...p, dni: e.target.value }))} className="px-3 py-2 border rounded-xl" />
+              <button type="submit" disabled={savingEmp} className="md:col-span-2 bg-blue-600 text-white font-semibold py-2.5 rounded-xl hover:bg-blue-700 transition-colors">Crear Empleado</button>
             </form>
           </div>
 
-          {/* Lista de empleados */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="bg-slate-50 p-4 border-b border-slate-100 flex items-center justify-between">
               <h2 className="font-bold text-slate-700 flex items-center"><Users className="w-4 h-4 mr-2" /> Empleados Registrados</h2>
@@ -475,45 +465,89 @@ export default function AdminView() {
             </div>
             <div className="p-4">
               {loadingEmp ? (
-                <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
+                <div className="flex justify-center p-8 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
               ) : empleados.length === 0 ? (
                 <p className="text-center text-slate-400 py-8">No hay empleados registrados aún.</p>
               ) : (
-                <div className="space-y-3">
-                  {empleados.map(emp => (
-                    <div key={emp.id_empleado} className="flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
-                      <div className="flex items-center space-x-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          emp.auth_user_id ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'
-                        }`}>
-                          {emp.auth_user_id ? <BadgeCheck className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-slate-800">{emp.nombres} {emp.ap_paterno}</p>
-                          <p className="text-sm text-slate-500 flex items-center"><Mail className="w-3.5 h-3.5 mr-1" />{emp.email_corporativo}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                          emp.auth_user_id
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-amber-100 text-amber-700'
-                        }`}>
-                          {emp.auth_user_id ? '✓ Activo' : '⏳ Sin cuenta'}
-                        </span>
-                        <button
-                          onClick={() => handleEliminarEmpleado(emp.id_empleado, `${emp.nombres} ${emp.ap_paterno}`)}
-                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Eliminar empleado"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                <>
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-start space-x-3 text-xs text-blue-800">
+                    <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-bold">Estados:</p>
+                      <p>• <b>Activo:</b> Registrado y vinculado.</p>
+                      <p>• <b className="text-amber-700">Sin cuenta:</b> Pre-registrado (debe crearse cuenta en la app).</p>
+                      <p>• <b className="text-slate-500">Inactivo:</b> Deshabilitado temporalmente.</p>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                  <div className="space-y-3">
+                    {empleados.map(emp => (
+                      <div key={emp.id_empleado} className={`flex items-center justify-between p-4 rounded-xl border ${emp.activo ? 'border-slate-100 hover:bg-slate-50' : 'border-slate-100 bg-slate-50 opacity-60'}`}>
+                        <div className="flex items-center space-x-4">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${!emp.activo ? 'bg-slate-200 text-slate-400' : emp.auth_user_id ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                            {!emp.activo ? <UserX className="w-5 h-5" /> : emp.auth_user_id ? <BadgeCheck className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-800">{emp.nombres} {emp.ap_paterno}</p>
+                            <p className="text-sm text-slate-500 flex items-center"><Mail className="w-3.5 h-3.5 mr-1" />{emp.email_corporativo}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full cursor-help ${!emp.activo ? 'bg-slate-200 text-slate-500' : emp.auth_user_id ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`} title={!emp.activo ? 'Deshabilitado' : emp.auth_user_id ? 'Vinculado' : 'Debe registrarse en la app'}>
+                            {!emp.activo ? '❌ Inactivo' : emp.auth_user_id ? '✓ Activo' : '⏳ Sin cuenta'}
+                          </span>
+                          <button onClick={() => handleToggleBaja(emp)} className={`p-2 rounded-lg ${!emp.activo ? 'text-green-600 hover:bg-green-50' : 'text-amber-500 hover:bg-amber-50'}`}>
+                            {!emp.activo ? <UserCheck className="w-4 h-4" /> : <UserX className="w-4 h-4" />}
+                          </button>
+                          <button onClick={() => handleEliminarEmpleado(emp.id_empleado, `${emp.nombres} ${emp.ap_paterno}`)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {showCsvModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => !csvImporting && setShowCsvModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-5 flex justify-between items-center text-white">
+              <h2 className="font-bold text-lg flex items-center"><Upload className="w-5 h-5 mr-2" /> {csvRows.length} fila(s) detectadas</h2>
+              {!csvImporting && <button onClick={() => setShowCsvModal(false)}><X className="w-5 h-5" /></button>}
+            </div>
+            {csvImportResult ? (
+              <div className="p-8 text-center">
+                <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                <p className="text-lg font-bold">Importación completada</p>
+                <p className="text-slate-500"><span className="text-green-600 font-bold">{csvImportResult.ok} exitosos</span>, {csvImportResult.fail} omitidos.</p>
+                <button onClick={() => setShowCsvModal(false)} className="mt-6 bg-blue-600 text-white px-6 py-2 rounded-xl">Cerrar</button>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-auto flex-1 p-4">
+                  <table className="w-full text-xs">
+                    <thead><tr className="bg-slate-50"><th>#</th><th>Nombre</th><th>Email</th><th>Estado</th></tr></thead>
+                    <tbody>
+                      {csvRows.map((row, i) => (
+                        <tr key={i} className={row.valid ? '' : 'bg-red-50'}>
+                          <td className="p-2">{i+1}</td>
+                          <td className="p-2">{row.nombres} {row.ap_paterno}</td>
+                          <td className="p-2">{row.email_corporativo}</td>
+                          <td className="p-2">{row.valid ? 'OK' : 'Error'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="p-4 border-t flex justify-end">
+                  <button onClick={handleCsvImport} disabled={csvImporting || csvRows.filter(r => r.valid).length === 0} className="bg-blue-600 text-white px-6 py-2 rounded-xl">Importar</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
