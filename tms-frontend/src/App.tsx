@@ -8,6 +8,7 @@ import NuevaSolicitud from './pages/NuevaSolicitud';
 import AdminView from './pages/AdminView';
 import ResetPassword from './pages/ResetPassword';
 import Navbar from './components/Navbar';
+import CotizarSolicitud from './pages/CotizarSolicitud';
 
 // Wrapper para Rutas Protegidas (incluye Navbar)
 const ProtectedRoute = ({
@@ -114,6 +115,7 @@ function App() {
             }
           />
 
+          <Route path="/cotizar/:id" element={<CotizarSolicitud />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

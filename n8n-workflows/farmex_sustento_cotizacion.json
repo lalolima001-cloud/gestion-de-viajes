@@ -1,0 +1,58 @@
+{
+  "name": "FARMEX - Sustento de Cotización",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "quote-confirmation",
+        "options": {}
+      },
+      "id": "confirmation-webhook",
+      "name": "Webhook Confirmation",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "quote-confirmation-wh"
+    },
+    {
+      "parameters": {
+        "fromEmail": "lalolima001@gmail.com",
+        "toEmail": "lalolima@hotmail.com",
+        "subject": "=Sustento de Cotización: {{ $json.body.pasajero }} - FARMEX",
+        "emailFormat": "html",
+        "html": "=<h2>✅ Confirmación de Cotización Recibida</h2>\n<p>Estimados,</p>\n<p>Se ha recibido formalmente la cotización para el siguiente pasajero:</p>\n<div style=\"background-color:#f8fafc; padding:20px; border-radius:10px; margin-bottom:20px; border:1px solid #e2e8f0;\">\n  <p><strong>Pasajero:</strong> {{ $json.body.pasajero }}</p>\n  <p><strong>ID Solicitud:</strong> {{ $json.body.id_solicitud }}</p>\n</div>\n\n<h3>✈️ Opciones de Vuelo Enviadas:</h3>\n<table border=\"1\" cellpadding=\"10\" cellspacing=\"0\" style=\"border-collapse:collapse; width:100%; border:1px solid #e2e8f0;\">\n  <tr style=\"background-color:#2563eb; color:white;\">\n    <th>Opción</th>\n    <th>Aerolínea</th>\n    <th>Itinerario</th>\n    <th>Precio (USD)</th>\n  </tr>\n  {{ $json.body.vuelos.map(v => `\n  <tr>\n    <td align=\"center\">${v.opcion}</td>\n    <td>${v.aerolinea}</td>\n    <td>${v.itinerario}</td>\n    <td align=\"right\"><strong>$${v.precio}</strong></td>\n  </tr>`).join('') }}\n</table>\n\n{{ $json.body.hospedaje ? `\n<h3>🏨 Opción de Hospedaje:</h3>\n<div style=\"padding:15px; border:1px solid #e2e8f0; border-radius:10px;\">\n  <p><strong>Hotel:</strong> ${$json.body.hospedaje.hotel}</p>\n  <p><strong>Habitación:</strong> ${$json.body.hospedaje.habitacion}</p>\n  <p><strong>Precio/Noche:</strong> $${$json.body.hospedaje.precio}</p>\n</div>` : '' }}\n\n<p style=\"margin-top:30px; font-size:12px; color:#64748b;\">\n  Este documento sirve como sustento oficial de la cotización enviada a través del sistema FARMEX TMS.\n  Cualquier discrepancia será resuelta tomando como base esta información.\n</p>\n<p>Saludos,<br/><strong>FARMEX – Sistema de Gestión de Viajes</strong></p>",
+        "options": {}
+      },
+      "id": "email-sustento",
+      "name": "Enviar Sustento",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        550,
+        300
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-id",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Enviar Sustento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

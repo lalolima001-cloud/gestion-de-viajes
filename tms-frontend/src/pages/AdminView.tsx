@@ -4,7 +4,7 @@ import {
   ShieldAlert, CheckCircle, ArrowLeft, Loader2, Plane,
   AlertCircle, Users, UserPlus, Mail, BadgeCheck, Clock, Trash2,
   Eye, X, FileText, Calendar, MapPin, Upload,
-  UserX, UserCheck
+  UserX, UserCheck, DollarSign
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -52,7 +52,15 @@ interface CsvRow {
   error: string;
 }
 
-type Tab = 'solicitudes' | 'empleados';
+interface CotizacionVuelo {
+  id_cotizacion: string;
+  aerolinea: string;
+  tarifa_usd: number;
+  nro_vuelo_ida: string;
+  nro_vuelo_vuelta: string | null;
+}
+
+type Tab = 'solicitudes' | 'compra' | 'empleados';
 
 const ID_EMPRESA = '518b4493-3dd5-4980-b016-a55ee88114c0';
 
@@ -82,6 +90,12 @@ export default function AdminView() {
   const [showCsvModal, setShowCsvModal] = useState(false);
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvImportResult, setCsvImportResult] = useState<{ ok: number; fail: number } | null>(null);
+  // --- Compra (Cotizaciones) ---
+  const [solicitudesCompra, setSolicitudesCompra] = useState<Solicitud[]>([]);
+  const [loadingCompra, setLoadingCompra] = useState(false);
+  const [cotizaciones, setCotizaciones] = useState<CotizacionVuelo[]>([]);
+  const [selectedSol, setSelectedSol] = useState<Solicitud | null>(null);
+  const [selectingQuote, setSelectingQuote] = useState(false);
 
   // Parse direct action from URL (from n8n email)
   useEffect(() => {
@@ -117,8 +131,48 @@ export default function AdminView() {
     setLoadingEmp(false);
   };
 
+  const fetchCompra = async () => {
+    setLoadingCompra(true);
+    const { data, error } = await supabase
+      .from('solicitudes_viaje')
+      .select('*, empleados(nombres, ap_paterno)')
+      .in('estado_solicitud', ['cotizando', 'aprobado'])
+      .order('fecha_creacion', { ascending: false });
+    if (!error && data) setSolicitudesCompra(data);
+    setLoadingCompra(false);
+  };
+
+  const fetchCotizaciones = async (id_solicitud: string) => {
+    const { data, error } = await supabase
+      .from('cotizaciones_vuelo')
+      .select('*')
+      .eq('id_solicitud', id_solicitud)
+      .order('opcion_numero');
+    if (!error && data) setCotizaciones(data);
+  };
+
   useEffect(() => { fetchPendientes(); }, []);
-  useEffect(() => { if (activeTab === 'empleados') fetchEmpleados(); }, [activeTab]);
+  useEffect(() => { 
+    if (activeTab === 'empleados') fetchEmpleados(); 
+    if (activeTab === 'compra') fetchCompra();
+  }, [activeTab]);
+
+  const handleSelectQuote = async (id_cotizacion: string) => {
+    if (!selectedSol) return;
+    setSelectingQuote(true);
+    
+    // 1. Marcar cotización como seleccionada
+    await supabase.from('cotizaciones_vuelo').update({ seleccionada: true }).eq('id_cotizacion', id_cotizacion);
+    
+    // 2. Marcar solicitud como confirmada
+    await supabase.from('solicitudes_viaje').update({ estado_solicitud: 'confirmado' }).eq('id_solicitud', selectedSol.id_solicitud);
+    
+    setSuccessMsg('¡Compra confirmada! El pasaje ha sido seleccionado exitosamente.');
+    setSelectedSol(null);
+    setCotizaciones([]);
+    fetchCompra();
+    setSelectingQuote(false);
+  };
 
   const handleDecision = async (id_solicitud: string, decision: string, fromUrl = false) => {
     if (processingId) return; // Evitar múltiples clics
@@ -436,8 +490,16 @@ export default function AdminView() {
           )}
         </button>
         <button
+          onClick={() => setActiveTab('compra')}
+          className={`flex items-center px-4 py-2 rounded-xl font-semibold text-xs md:text-sm tracking-tight transition-all ${
+            activeTab === 'compra' ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+          }`}
+        >
+          <BadgeCheck className="w-4 h-4 mr-2" /> Aprobar Compra
+        </button>
+        <button
           onClick={() => setActiveTab('empleados')}
-          className={`flex items-center px-4 py-2 rounded-xl font-semibold text-xs md:text-sm transition-all ${
+          className={`flex items-center px-4 py-2 rounded-xl font-semibold text-xs md:text-sm tracking-tight transition-all ${
             activeTab === 'empleados' ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
@@ -490,6 +552,118 @@ export default function AdminView() {
             </div>
           </div>
         </>
+      )}
+
+      {activeTab === 'compra' && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="bg-slate-50 p-4 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="font-bold text-slate-700">Solicitudes para Compra</h2>
+              <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-lg">
+                {loadingCompra ? '...' : `${solicitudesCompra.length} en proceso`}
+              </span>
+            </div>
+            <div className="p-4">
+              {loadingCompra ? (
+                <div className="flex justify-center p-12 text-slate-400"><Loader2 className="w-8 h-8 animate-spin" /></div>
+              ) : solicitudesCompra.length === 0 ? (
+                <p className="text-center py-8 text-slate-400">No hay solicitudes esperando cotización o compra.</p>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {solicitudesCompra.map(sol => (
+                    <div key={sol.id_solicitud} className="border border-slate-100 rounded-2xl p-4 hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-start mb-3">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${sol.estado_solicitud === 'cotizando' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {sol.estado_solicitud}
+                        </span>
+                        <span className="text-[10px] text-slate-400">{new Date(sol.fecha_creacion).toLocaleDateString()}</span>
+                      </div>
+                      <h3 className="font-bold text-slate-800 text-sm truncate uppercase mb-1">{sol.origen} &rarr; {sol.destino}</h3>
+                      <p className="text-xs text-slate-500 mb-4">{sol.empleados.nombres} {sol.empleados.ap_paterno}</p>
+                      
+                      <button 
+                        onClick={() => { setSelectedSol(sol); fetchCotizaciones(sol.id_solicitud); }}
+                        className="w-full bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white font-bold py-2 rounded-xl text-xs transition-all flex items-center justify-center"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> Ver Cotizaciones
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Modal de Selección de Cotización */}
+          {selectedSol && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedSol(null)}>
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                <div className="p-6 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-800">Seleccionar Opción de Vuelo</h2>
+                    <p className="text-sm text-slate-500">{selectedSol.origen} &rarr; {selectedSol.destino} | {selectedSol.empleados.nombres} {selectedSol.empleados.ap_paterno}</p>
+                  </div>
+                  <button onClick={() => setSelectedSol(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                </div>
+                
+                <div className="p-6 overflow-auto flex-1">
+                  {cotizaciones.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Clock className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                      <p className="text-slate-400">Aún no se han recibido cotizaciones de la agencia para esta solicitud.</p>
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 gap-6">
+                      {cotizaciones.map((cot, i) => (
+                        <div key={cot.id_cotizacion} className="border-2 border-slate-100 rounded-2xl p-5 hover:border-blue-400 transition-colors relative bg-white">
+                          <div className="absolute -top-3 -left-3 w-8 h-8 bg-blue-600 text-white font-bold rounded-full flex items-center justify-center shadow-lg">
+                            {i+1}
+                          </div>
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <p className="text-lg font-bold text-slate-800">{cot.aerolinea}</p>
+                              <p className="text-xs text-slate-400">Vuelo {cot.nro_vuelo_ida}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-2xl font-black text-blue-600">${cot.tarifa_usd}</p>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tarifa Final</p>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-slate-50 rounded-xl p-3 mb-4 space-y-2">
+                            <div className="flex items-center text-xs text-slate-600">
+                              <Plane className="w-3.5 h-3.5 mr-2 text-slate-400" />
+                              <span className="font-medium mr-2">Ida:</span> {cot.nro_vuelo_ida}
+                            </div>
+                            {cot.nro_vuelo_vuelta && (
+                              <div className="flex items-center text-xs text-slate-600">
+                                <Plane className="w-3.5 h-3.5 mr-2 text-slate-400 rotate-180" />
+                                <span className="font-medium mr-2">Vuelta:</span> {cot.nro_vuelo_vuelta}
+                              </div>
+                            )}
+                          </div>
+
+                          <button 
+                            disabled={selectingQuote}
+                            onClick={() => handleSelectQuote(cot.id_cotizacion)}
+                            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-200 text-white font-bold py-3 rounded-xl shadow-md shadow-green-100 transition-all flex items-center justify-center group"
+                          >
+                            {selectingQuote ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                              <>
+                                <DollarSign className="w-4 h-4 mr-1.5 group-hover:scale-110 transition-transform" />
+                                Confirmar y Comprar
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {activeTab === 'empleados' && (
