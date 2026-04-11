@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Plane, Clock, MapPin, Plus, CheckCircle, AlertCircle, Loader2, ShieldAlert, X, Hotel, FileText, Calendar, Eye, XCircle } from 'lucide-react';
+import { Plane, Clock, MapPin, Plus, CheckCircle, AlertCircle, Loader2, ShieldAlert, X, Hotel, FileText, Calendar, XCircle } from 'lucide-react';
 
 const AEROPUERTOS: Record<string, string> = {
   LIM: 'Lima (Chavez)', AQP: 'Arequipa (Rodríguez Ballón)', CUZ: 'Cusco (Velasco Astete)',
