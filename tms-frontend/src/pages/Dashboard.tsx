@@ -1,15 +1,27 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Plane, Clock, MapPin, Plus, CheckCircle, AlertCircle, Loader2, ShieldAlert } from 'lucide-react';
+import { Plane, Clock, MapPin, Plus, CheckCircle, AlertCircle, Loader2, ShieldAlert, X, Hotel, FileText, Calendar, Eye, XCircle } from 'lucide-react';
+
+const AEROPUERTOS: Record<string, string> = {
+  LIM: 'Lima (Chavez)', AQP: 'Arequipa (Rodríguez Ballón)', CUZ: 'Cusco (Velasco Astete)',
+  PIU: 'Piura (Concha Iberico)', TPP: 'Tarapoto', IQT: 'Iquitos (Secada Vignetta)',
+  CIX: 'Chiclayo (Quiñones)', TRU: 'Trujillo (Martínez de Pinillos)', PCL: 'Pucallpa (David Abensur)',
+  JUL: 'Juliaca (Manco Cápac)', TCQ: 'Tacna (Carlos Ciriani)', CJA: 'Cajamarca',
+  AYP: 'Ayacucho', JAU: 'Jauja (Francisco Carlé)', PEM: 'Puerto Maldonado (Padre Aldamiz)',
+  TBP: 'Tumbes', TYL: 'Talara', CHH: 'Chachapoyas', HUU: 'Huánuco', ATA: 'Anta / Huaraz'
+};
 
 interface Viaje {
   id_solicitud: string;
+  origen: string;
   destino: string;
   fecha_viaje_ida: string;
+  fecha_viaje_vuelta: string | null;
   estado_solicitud: string;
   incluye_hospedaje: boolean;
   tipo_solicitud: string;
+  justificacion_negocio: string | null;
 }
 
 export default function Dashboard() {
@@ -17,6 +29,7 @@ export default function Dashboard() {
   const [filter, setFilter] = useState<'todos' | 'pendiente' | 'aprobado' | 'rechazado'>('todos');
   const [loading, setLoading] = useState(true);
   const [isUnlinked, setIsUnlinked] = useState(false);
+  const [detalle, setDetalle] = useState<Viaje | null>(null);
 
   useEffect(() => {
     const fetchViajes = async () => {
@@ -172,7 +185,11 @@ export default function Dashboard() {
             const dia = fechaParts[2];
 
             return (
-              <div key={viaje.id_solicitud} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex justify-between items-center group cursor-pointer">
+              <div 
+                key={viaje.id_solicitud} 
+                onClick={() => setDetalle(viaje)}
+                className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex justify-between items-center group cursor-pointer"
+              >
                 <div className="flex space-x-5 items-center">
                   <div className="w-14 h-14 bg-slate-50 rounded-xl flex flex-col items-center justify-center border border-slate-100">
                     <span className="text-xs text-slate-400 font-bold uppercase">{mes}</span>
@@ -211,6 +228,110 @@ export default function Dashboard() {
               </div>
             );
           })}
+        </div>
+      )}
+      {/* ===== MODAL DETALLE ===== */}
+      {detalle && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setDetalle(null)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 flex justify-between items-center">
+              <div>
+                <p className="text-blue-100 text-xs font-bold uppercase tracking-wider mb-1">Detalle del Viaje</p>
+                <h2 className="text-white font-black text-2xl flex items-center">
+                  <Plane className="w-6 h-6 mr-3" />
+                  {detalle.destino}
+                </h2>
+              </div>
+              <button 
+                onClick={() => setDetalle(null)} 
+                className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-6">
+              <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <span className="text-sm font-bold text-slate-500 uppercase tracking-tight">Estado Actual</span>
+                {['aprobado', 'confirmado'].includes(detalle.estado_solicitud) ? (
+                  <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-bold bg-green-100 text-green-700 capitalize">
+                    <CheckCircle className="w-4 h-4 mr-2" /> {detalle.estado_solicitud}
+                  </span>
+                ) : detalle.estado_solicitud === 'rechazado' ? (
+                  <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-bold bg-red-100 text-red-700 capitalize">
+                    <XCircle className="w-4 h-4 mr-2" /> Rechazado
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-bold bg-amber-100 text-amber-700 capitalize">
+                    <Clock className="w-4 h-4 mr-2" /> {detalle.estado_solicitud}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-5">
+                <div className="flex items-start space-x-4">
+                  <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center flex-shrink-0 border border-blue-100">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 font-bold uppercase mb-0.5">Ruta de Viaje</p>
+                    <p className="font-bold text-slate-800 text-lg">
+                      {AEROPUERTOS[detalle.origen] || detalle.origen} &rarr; {AEROPUERTOS[detalle.destino] || detalle.destino}
+                    </p>
+                    <p className="text-sm text-slate-500 font-medium">{detalle.tipo_solicitud || 'Individual'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 border border-indigo-100">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 font-bold uppercase mb-0.5">Fechas Programadas</p>
+                    <div className="space-y-1">
+                      <p className="font-bold text-slate-800">Ida: <span className="font-normal text-slate-600">{detalle.fecha_viaje_ida}</span></p>
+                      {detalle.fecha_viaje_vuelta && (
+                        <p className="font-bold text-slate-800">Retorno: <span className="font-normal text-slate-600">{detalle.fecha_viaje_vuelta}</span></p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border ${detalle.incluye_hospedaje ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
+                    <Hotel className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 font-bold uppercase mb-0.5">Hospedaje</p>
+                    <p className="font-bold text-slate-800">
+                      {detalle.incluye_hospedaje ? 'Requiere Hotel' : 'No requiere hotel'}
+                    </p>
+                  </div>
+                </div>
+
+                {detalle.justificacion_negocio && (
+                  <div className="flex items-start space-x-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <div className="w-10 h-10 bg-white text-slate-400 rounded-xl flex items-center justify-center flex-shrink-0 border border-slate-200">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 font-bold uppercase mb-1">Motivo del Viaje</p>
+                      <p className="text-sm text-slate-600 leading-relaxed italic">"{detalle.justificacion_negocio}"</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="px-8 pb-8">
+              <button
+                onClick={() => setDetalle(null)}
+                className="w-full bg-slate-800 text-white font-bold py-4 rounded-2xl hover:bg-slate-900 transition-all shadow-lg shadow-slate-200 active:scale-[0.98]"
+              >
+                Cerrar Detalle
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

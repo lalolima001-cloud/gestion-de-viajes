@@ -140,7 +140,7 @@ export default function NuevaSolicitud() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-4 md:p-6 pt-8 md:pt-12 mb-20">
+    <div className="max-w-3xl mx-auto p-4 md:p-6 pt-4 md:pt-8 mb-20">
       <Link to="/dashboard" className="inline-flex items-center text-sm font-semibold text-slate-500 hover:text-blue-600 mb-6 transition-colors">
         <ArrowLeft className="w-4 h-4 mr-1.5" />
         Volver a mis viajes
@@ -152,18 +152,11 @@ export default function NuevaSolicitud() {
           <p className="text-sm md:text-base text-blue-100/80">Completa los datos del itinerario para iniciar la cotización con la agencia.</p>
         </div>
 
-        <div className="p-5 md:p-8 space-y-6 md:space-y-8">
+        <div className="p-5 md:p-8 space-y-2 md:space-y-3">
           
-          {errorDate && (
-            <div className="bg-red-50 text-red-700 p-4 rounded-xl flex items-start border border-red-100">
-              <AlertCircle className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
-              <p className="font-medium text-sm">{errorDate}</p>
-            </div>
-          )}
-
           {/* Origen y Destino */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="space-y-2">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
               <label className="text-sm font-bold text-slate-700 flex items-center">
                 <PlaneTakeoff className="w-4 h-4 mr-1.5 text-blue-500" /> Origen
               </label>
@@ -179,7 +172,7 @@ export default function NuevaSolicitud() {
                 ))}
               </select>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-sm font-bold text-slate-700 flex items-center">
                 <MapPin className="w-4 h-4 mr-1.5 text-blue-500" /> Destino
               </label>
@@ -198,12 +191,12 @@ export default function NuevaSolicitud() {
           </div>
 
           {/* Fechas y Horas de Ida */}
-          <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-6">
-            <h3 className="font-bold text-slate-800 flex items-center text-sm uppercase tracking-wider mb-2">
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
+            <h3 className="font-bold text-slate-800 flex items-center text-sm uppercase tracking-wider mb-1">
               <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span> Trayecto de Ida
             </h3>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="space-y-2">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
                 <label className="text-sm font-bold text-slate-700 flex items-center">
                   <Calendar className="w-4 h-4 mr-1.5 text-blue-500" /> Fecha de Ida
                 </label>
@@ -216,7 +209,7 @@ export default function NuevaSolicitud() {
                   required
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-sm font-bold text-slate-700 flex items-center">
                   <Clock className="w-4 h-4 mr-1.5 text-blue-500" /> Preferencia de Hora
                 </label>
@@ -235,12 +228,12 @@ export default function NuevaSolicitud() {
           </div>
 
           {/* Fechas y Horas de Retorno */}
-          <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-6">
-            <h3 className="font-bold text-slate-800 flex items-center text-sm uppercase tracking-wider mb-2">
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
+            <h3 className="font-bold text-slate-800 flex items-center text-sm uppercase tracking-wider mb-1">
               <span className="w-2 h-2 bg-slate-400 rounded-full mr-2"></span> Trayecto de Retorno
             </h3>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="space-y-2">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
                 <label className="text-sm font-bold text-slate-700 flex items-center">
                   <Calendar className="w-4 h-4 mr-1.5 text-slate-400" /> Fecha de Retorno
                 </label>
@@ -252,7 +245,7 @@ export default function NuevaSolicitud() {
                   className="w-full bg-white border border-slate-200 focus:border-slate-400 focus:ring focus:ring-slate-200 outline-none rounded-xl px-4 py-3 font-medium text-slate-800 transition-all"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-sm font-bold text-slate-700 flex items-center">
                   <Clock className="w-4 h-4 mr-1.5 text-slate-400" /> Preferencia de Hora
                 </label>
@@ -274,7 +267,7 @@ export default function NuevaSolicitud() {
           <hr className="border-slate-100" />
 
           {/* Justificación */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="text-sm font-bold text-slate-700 flex items-center">
               <FileText className="w-4 h-4 mr-1.5 text-blue-500" /> Motivo Comercial
             </label>
@@ -308,6 +301,13 @@ export default function NuevaSolicitud() {
               </span>
             </div>
           </label>
+
+          {errorDate && (
+            <div className="bg-red-50 text-red-700 p-4 rounded-xl flex items-start border border-red-100 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <AlertCircle className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
+              <p className="font-medium text-sm">{errorDate}</p>
+            </div>
+          )}
 
           {/* Submit */}
           <div className="pt-4 flex flex-col-reverse md:flex-row md:justify-end items-center md:space-x-4 gap-4 md:gap-0">

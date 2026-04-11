@@ -3,8 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import {
   ShieldAlert, CheckCircle, ArrowLeft, Loader2, Plane,
   AlertCircle, Users, UserPlus, Mail, BadgeCheck, Clock, Trash2,
-  Eye, X, Hotel, FileText, Calendar, MapPin, Upload, Download,
-  UserX, UserCheck, TriangleAlert, XCircle
+  Eye, X, FileText, Calendar, MapPin, Upload,
+  UserX, UserCheck
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -121,20 +121,60 @@ export default function AdminView() {
   useEffect(() => { if (activeTab === 'empleados') fetchEmpleados(); }, [activeTab]);
 
   const handleDecision = async (id_solicitud: string, decision: string, fromUrl = false) => {
+    if (processingId) return; // Evitar múltiples clics
     setProcessingId(id_solicitud);
     setErrorMsg(null); setSuccessMsg(null);
+    
+    // 1. Actualizar estado en Supabase
     const { error } = await supabase
       .from('solicitudes_viaje')
       .update({ estado_solicitud: decision })
       .eq('id_solicitud', id_solicitud);
-    setProcessingId(null);
+    
     if (error) {
-      setErrorMsg(`Error al ${decision === 'aprobado' ? 'aprobar' : 'rechazar'} la solicitud.`);
-    } else {
-      setSuccessMsg(`Solicitud marcada como ${decision} exitosamente.`);
-      if (!fromUrl) setSolicitudes(prev => prev.filter(s => s.id_solicitud !== id_solicitud));
-      else setTimeout(() => fetchPendientes(), 500);
+      console.error('Error DB:', error);
+      setErrorMsg(`Error al ${decision === 'aprobado' ? 'aprobar' : 'rechazar'}: ${error.message}`);
+      setProcessingId(null);
+      return; // Detenemos aquí, el modal NO se cierra
     }
+
+    // 2. Si es aprobado, notificar a n8n (SIN AWAIT para no bloquear la UI)
+    if (decision === 'aprobado') {
+      const sol = solicitudes.find(s => s.id_solicitud === id_solicitud);
+      if (sol) {
+        const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'https://n8n-farmex.duckdns.org/webhook/quote-request';
+        
+        const formatFecha = (fecha: string | null) => {
+          if (!fecha) return 'N/A';
+          const [y, m, d] = fecha.split('-');
+          const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+          return `${parseInt(d)} de ${meses[parseInt(m) - 1]} de ${y}`;
+        };
+        const nombrePasajero = `${sol.empleados?.nombres} ${sol.empleados?.ap_paterno}`;
+
+        fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id_solicitud: sol.id_solicitud,
+            subject: `Solicitud de Cotización: ${nombrePasajero} | ${AEROPUERTOS[sol.origen] || sol.origen} → ${AEROPUERTOS[sol.destino] || sol.destino} - FARMEX`,
+            pasajero: nombrePasajero,
+            origen: AEROPUERTOS[sol.origen] || sol.origen,
+            destino: AEROPUERTOS[sol.destino] || sol.destino,
+            fecha_ida: formatFecha(sol.fecha_viaje_ida),
+            fecha_vuelta: formatFecha(sol.fecha_viaje_vuelta),
+            hospedaje: sol.incluye_hospedaje ? 'Sí' : 'No',
+            justificacion: sol.justificacion_negocio
+          })
+        }).catch(err => console.error('Error n8n (async):', err));
+      }
+    }
+
+    setProcessingId(null);
+    setDetalle(null); // Ahora sí cerramos el modal, todo salió bien
+    setSuccessMsg(`Solicitud marcada como ${decision} exitosamente.`);
+    if (!fromUrl) setSolicitudes(prev => prev.filter(s => s.id_solicitud !== id_solicitud));
+    else setTimeout(() => fetchPendientes(), 500);
   };
 
   const handleCrearEmpleado = async (e: React.FormEvent) => {
@@ -359,14 +399,16 @@ export default function AdminView() {
             {detalle.estado_solicitud === 'enviado' && (
               <div className="px-6 pb-6 grid grid-cols-2 gap-3">
                 <button
-                  onClick={() => { handleDecision(detalle.id_solicitud, 'aprobado'); setDetalle(null); }}
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-xl flex items-center justify-center text-sm transition-colors"
+                  disabled={!!processingId}
+                  onClick={() => handleDecision(detalle.id_solicitud, 'aprobado')}
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-slate-300 text-white font-bold py-2.5 rounded-xl flex items-center justify-center text-sm transition-colors"
                 >
-                  <CheckCircle className="w-4 h-4 mr-1.5" /> Aprobar
+                  {processingId === detalle.id_solicitud ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4 mr-1.5" /> Aprobar</>}
                 </button>
                 <button
-                  onClick={() => { handleDecision(detalle.id_solicitud, 'rechazado'); setDetalle(null); }}
-                  className="bg-red-100 hover:bg-red-200 text-red-700 font-bold py-2.5 rounded-xl flex items-center justify-center text-sm transition-colors"
+                  disabled={!!processingId}
+                  onClick={() => handleDecision(detalle.id_solicitud, 'rechazado')}
+                  className="bg-red-100 hover:bg-red-200 disabled:bg-slate-100 disabled:text-slate-400 text-red-700 font-bold py-2.5 rounded-xl flex items-center justify-center text-sm transition-colors"
                 >
                   <AlertCircle className="w-4 h-4 mr-1.5" /> Denegar
                 </button>
@@ -376,15 +418,15 @@ export default function AdminView() {
         </div>
       )}
 
-      <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-6">
-        <h1 className="text-2xl font-bold text-slate-800 mb-1">Panel de Administración</h1>
-        <p className="text-slate-500">Gestión de aprobaciones de viajes y empleados FARMEX TMS.</p>
+      <div className="bg-white p-5 md:p-6 rounded-3xl shadow-sm border border-slate-100 mb-4">
+        <h1 className="text-xl md:text-2xl font-bold text-slate-800 mb-0.5">Panel de Administración</h1>
+        <p className="text-sm text-slate-500">Gestión de aprobaciones de viajes y empleados FARMEX TMS.</p>
       </div>
 
-      <div className="flex space-x-2 mb-6">
+      <div className="flex space-x-2 mb-4">
         <button
           onClick={() => setActiveTab('solicitudes')}
-          className={`flex items-center px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+          className={`flex items-center px-4 py-2 rounded-xl font-semibold text-xs md:text-sm transition-all ${
             activeTab === 'solicitudes' ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
@@ -395,7 +437,7 @@ export default function AdminView() {
         </button>
         <button
           onClick={() => setActiveTab('empleados')}
-          className={`flex items-center px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+          className={`flex items-center px-4 py-2 rounded-xl font-semibold text-xs md:text-sm transition-all ${
             activeTab === 'empleados' ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
@@ -412,7 +454,7 @@ export default function AdminView() {
               <h2 className="font-bold text-slate-700">Solicitudes Pendientes</h2>
               <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-lg">{loading ? '...' : `${solicitudes.length} Pendiente(s)`}</span>
             </div>
-            <div className="p-6">
+            <div className="p-4">
               {loading ? (
                 <div className="flex justify-center p-12 text-slate-400"><Loader2 className="w-8 h-8 animate-spin" /></div>
               ) : solicitudes.length === 0 ? (
@@ -421,15 +463,15 @@ export default function AdminView() {
                   <p className="text-slate-500 font-medium">No hay solicitudes pendientes.</p>
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-3">
                   {solicitudes.map((sol) => (
-                    <div key={sol.id_solicitud} className="border border-slate-100 bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
+                    <div key={sol.id_solicitud} className="border border-slate-100 bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between mb-3">
                         <div>
                           <h3 className="font-bold text-slate-800 text-lg uppercase flex items-center">
-                            <Plane className="w-5 h-5 mr-2 text-blue-500" /> {sol.origen} &rarr; {sol.destino}
+                            <Plane className="w-4 h-4 mr-2 text-blue-500" /> {sol.origen} &rarr; {sol.destino}
                           </h3>
-                          <p className="text-sm font-medium text-slate-500 mt-1">Pasajero: {sol.empleados?.nombres} {sol.empleados?.ap_paterno}</p>
+                          <p className="text-xs font-medium text-slate-500 mt-0.5">Pasajero: {sol.empleados?.nombres} {sol.empleados?.ap_paterno}</p>
                         </div>
                         <div className="mt-2 md:mt-0 text-left md:text-right">
                           <span className="text-xs bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded-full uppercase tracking-wider">{sol.tipo_solicitud}</span>
@@ -451,8 +493,8 @@ export default function AdminView() {
       )}
 
       {activeTab === 'empleados' && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 md:p-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
               <div>
                 <h2 className="font-bold text-slate-800 flex items-center"><UserPlus className="w-5 h-5 mr-2 text-blue-500" /> Registrar Empleado</h2>
@@ -468,26 +510,26 @@ export default function AdminView() {
             {empError && <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100">{empError}</div>}
             {empSuccess && <div className="mb-4 p-4 bg-green-50 text-green-700 rounded-lg text-sm border border-green-100 flex items-start"><CheckCircle className="w-5 h-5 mr-2 mt-0.5" />{empSuccess}</div>}
 
-            <form onSubmit={handleCrearEmpleado} className="grid md:grid-cols-2 gap-4">
-              <input type="text" required placeholder="Nombres" value={formEmp.nombres} onChange={e => setFormEmp(p => ({ ...p, nombres: e.target.value }))} className="px-3 py-2 border rounded-xl" />
-              <input type="text" required placeholder="Apellido Paterno" value={formEmp.ap_paterno} onChange={e => setFormEmp(p => ({ ...p, ap_paterno: e.target.value }))} className="px-3 py-2 border rounded-xl" />
-              <input type="email" required placeholder="Correo @farmex.com.pe" value={formEmp.email_corporativo} onChange={e => setFormEmp(p => ({ ...p, email_corporativo: e.target.value }))} className="px-3 py-2 border rounded-xl" />
-              <input type="text" placeholder="DNI (opcional)" value={formEmp.dni} onChange={e => setFormEmp(p => ({ ...p, dni: e.target.value }))} className="px-3 py-2 border rounded-xl" />
+            <form onSubmit={handleCrearEmpleado} className="grid md:grid-cols-4 gap-3">
+              <input type="text" required placeholder="Nombres" value={formEmp.nombres} onChange={e => setFormEmp(p => ({ ...p, nombres: e.target.value }))} className="px-3 py-2 text-sm border rounded-xl" />
+              <input type="text" required placeholder="Apellido Paterno" value={formEmp.ap_paterno} onChange={e => setFormEmp(p => ({ ...p, ap_paterno: e.target.value }))} className="px-3 py-2 text-sm border rounded-xl" />
+              <input type="email" required placeholder="Correo @farmex.com.pe" value={formEmp.email_corporativo} onChange={e => setFormEmp(p => ({ ...p, email_corporativo: e.target.value }))} className="px-3 py-2 text-sm border rounded-xl" />
+              <input type="text" placeholder="DNI (opcional)" value={formEmp.dni} onChange={e => setFormEmp(p => ({ ...p, dni: e.target.value }))} className="px-3 py-2 text-sm border rounded-xl" />
               
-              <div className="md:col-span-2 flex items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="md:col-span-3 flex items-center p-2.5 bg-slate-50 rounded-xl border border-slate-100">
                 <input 
                   type="checkbox" 
                   id="is_admin_toggle"
                   checked={formEmp.is_admin} 
                   onChange={e => setFormEmp(p => ({ ...p, is_admin: e.target.checked }))} 
-                  className="w-5 h-5 text-blue-600 rounded cursor-pointer" 
+                  className="w-4 h-4 text-blue-600 rounded cursor-pointer" 
                 />
-                <label htmlFor="is_admin_toggle" className="ml-3 text-sm font-semibold text-slate-700 cursor-pointer">
-                  Asignar Rol de Administrador <span className="text-xs font-normal text-slate-400 font-medium ml-1">(Podrá gestionar empleados y aprobar solicitudes)</span>
+                <label htmlFor="is_admin_toggle" className="ml-3 text-xs font-semibold text-slate-700 cursor-pointer">
+                  Asignar Rol de Administrador <span className="text-[10px] font-normal text-slate-400 ml-1">(Podrá gestionar empleados y aprobar solicitudes)</span>
                 </label>
               </div>
-
-              <button type="submit" disabled={savingEmp} className="md:col-span-2 bg-blue-600 text-white font-semibold py-2.5 rounded-xl hover:bg-blue-700 transition-colors">Crear Empleado</button>
+    
+              <button type="submit" disabled={savingEmp} className="md:col-span-1 bg-blue-600 text-white text-sm font-semibold py-2 rounded-xl hover:bg-blue-700 transition-colors">Crear Empleado</button>
             </form>
           </div>
 
@@ -514,9 +556,9 @@ export default function AdminView() {
                   </div>
                   <div className="space-y-3">
                     {empleados.map(emp => (
-                      <div key={emp.id_empleado} className={`flex items-center justify-between p-4 rounded-xl border ${emp.activo ? 'border-slate-100 hover:bg-slate-50' : 'border-slate-100 bg-slate-50 opacity-60'}`}>
+                      <div key={emp.id_empleado} className={`flex items-center justify-between p-3 rounded-xl border ${emp.activo ? 'border-slate-100 hover:bg-slate-50' : 'border-slate-100 bg-slate-50 opacity-60'}`}>
                         <div className="flex items-center space-x-4">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${!emp.activo ? 'bg-slate-200 text-slate-400' : emp.auth_user_id ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${!emp.activo ? 'bg-slate-200 text-slate-400' : emp.auth_user_id ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
                             {!emp.activo ? <UserX className="w-5 h-5" /> : emp.auth_user_id ? <BadgeCheck className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
                           </div>
                           <div>
