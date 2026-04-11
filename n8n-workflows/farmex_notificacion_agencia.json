@@ -1,0 +1,72 @@
+{
+  "name": "FARMEX - Notificación Agencia (Aprobado)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "quote-request",
+        "options": {}
+      },
+      "id": "89c29cfa-f301-4f89-a5bd-7df00865f36a",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        224,
+        -128
+      ],
+      "webhookId": "7d590113-93a6-4c83-9e5d-fe5029a83cbd"
+    },
+    {
+      "parameters": {
+        "fromEmail": "lalolima001@gmail.com",
+        "toEmail": "lalolima@hotmail.com",
+        "subject": "={{ $json.body.subject }}",
+        "emailFormat": "html",
+        "html": "=<h2>🛫 Nueva Solicitud de Cotización - FARMEX</h2>\n<p>Estimada agencia,</p>\n<p>Se ha aprobado una solicitud de viaje y requerimos su cotización:</p>\n<table border=\"1\" cellpadding=\"8\" cellspacing=\"0\" style=\"border-collapse:collapse; width:100%;\">\n  <tr><td><strong>Pasajero</strong></td><td>{{ $json.body.pasajero }}</td></tr>\n  <tr><td><strong>Origen</strong></td><td>{{ $json.body.origen }}</td></tr>\n  <tr><td><strong>Destino</strong></td><td>{{ $json.body.destino }}</td></tr>\n  <tr><td><strong>Fecha de ida</strong></td><td>{{ $json.body.fecha_ida }}</td></tr>\n  <tr><td><strong>Fecha de vuelta</strong></td><td>{{ $json.body.fecha_vuelta }}</td></tr>\n  <tr><td><strong>Hospedaje</strong></td><td>{{ $json.body.hospedaje }}</td></tr>\n  <tr><td><strong>Justificación</strong></td><td>{{ $json.body.justificacion }}</td></tr>\n</table>\n<p>Por favor enviarnos la cotización a la brevedad posible.</p>\n<p>Saludos,<br/><strong>FARMEX – Sistema de Gestión de Viajes</strong></p>\n",
+        "options": {}
+      },
+      "id": "ec521e6b-1fa3-4242-92ce-05e6ae5fe0da",
+      "name": "Notificar Agencia",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        736,
+        -128
+      ],
+      "webhookId": "ad8fd95c-07bf-4a12-992c-ca0f1de048c4",
+      "credentials": {
+        "smtp": {
+          "id": "qzAIlpHJX1xDrlIZ",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Notificar Agencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ca98c87d-6bbf-416f-a3b3-e27e763397b4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b15b21d22454c26ad36521910893ccceacae13bc6585580c0244a92397d86ad2"
+  },
+  "id": "ts0V4NrVkUwek0rc",
+  "tags": []
+}
