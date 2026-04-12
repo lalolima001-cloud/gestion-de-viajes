@@ -174,8 +174,8 @@ export default function CotizarSolicitud() {
         body: JSON.stringify({
           id_solicitud: id,
           pasajero: `${solicitud.empleados.nombres} ${solicitud.empleados.ap_paterno}`,
-          origen: solicitud.origen,
-          destino: solicitud.destino,
+          origen: AEROPUERTOS[solicitud.origen] || solicitud.origen,
+          destino: AEROPUERTOS[solicitud.destino] || solicitud.destino,
           vuelos: vuelos.map((v, i) => ({
             opcion: i + 1,
             aerolinea: v.aerolinea,
