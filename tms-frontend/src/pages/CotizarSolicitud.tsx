@@ -106,7 +106,16 @@ export default function CotizarSolicitud() {
   }, [id]);
 
   const addVuelo = () => {
-    setVuelos([...vuelos, { aerolinea: '', nro_vuelo_ida: '', fecha_hora_salida: '', fecha_hora_llegada: '', tarifa_usd: 0 }]);
+    setVuelos([...vuelos, { 
+      aerolinea: '', 
+      nro_vuelo_ida: '', 
+      fecha_hora_salida: solicitud?.fecha_viaje_ida ? `${solicitud.fecha_viaje_ida}T09:00` : '', 
+      fecha_hora_llegada: '', 
+      duracion_ida: '',
+      arribo_estimado_ida: '',
+      tarifa_usd: 0,
+      tarifa_tipo: 'Light'
+    }]);
   };
 
   const removeVuelo = (index: number) => {
