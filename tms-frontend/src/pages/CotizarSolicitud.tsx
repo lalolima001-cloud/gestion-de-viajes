@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
-  Plane, Hotel, Send, CheckCircle, AlertCircle, Loader2, 
-  MapPin, Calendar, DollarSign, Plus, Trash2, Info
+  Plane, Send, CheckCircle, AlertCircle, Loader2, 
+  MapPin, Calendar, DollarSign, Plus, Trash2, Info,
+  Clock, HelpCircle, X
 } from 'lucide-react';
 
 interface Solicitud {
@@ -21,11 +22,16 @@ interface VueloOption {
   aerolinea: string;
   nro_vuelo_ida: string;
   fecha_hora_salida: string;
-  fecha_hora_llegada: string;
+  fecha_hora_llegada: string; // We'll keep this in state for DB but it's now simple text/calc
+  duracion_ida: string;
+  arribo_estimado_ida: string;
   nro_vuelo_vuelta?: string;
   fecha_hora_salida_vuelta?: string;
   fecha_hora_llegada_vuelta?: string;
+  duracion_vuelta?: string;
+  arribo_estimado_vuelta?: string;
   tarifa_usd: number;
+  tarifa_tipo: string;
 }
 
 const AEROPUERTOS: Record<string, string> = {
@@ -47,14 +53,19 @@ export default function CotizarSolicitud() {
 
   // States for the form
   const [vuelos, setVuelos] = useState<VueloOption[]>([
-    { aerolinea: '', nro_vuelo_ida: '', fecha_hora_salida: '', fecha_hora_llegada: '', tarifa_usd: 0 }
+    { 
+      aerolinea: '', 
+      nro_vuelo_ida: '', 
+      fecha_hora_salida: '', 
+      fecha_hora_llegada: '', 
+      duracion_ida: '',
+      arribo_estimado_ida: '',
+      tarifa_usd: 0,
+      tarifa_tipo: 'Light'
+    }
   ]);
-  const [hotel, setHotel] = useState({
-    nombre_hotel: '',
-    tipo_habitacion: 'Simple',
-    tarifa_noche_usd: 0,
-    incluye_desayuno: true
-  });
+
+  const [showTarifaHelp, setShowTarifaHelp] = useState(false);
 
   useEffect(() => {
     const fetchSolicitud = async () => {
@@ -71,6 +82,22 @@ export default function CotizarSolicitud() {
         setError(`Esta solicitud ya no requiere cotización (Estado: ${data.estado_solicitud}).`);
       } else {
         setSolicitud(data);
+        // Pre-fill first flight with requested dates
+        setVuelos([{
+          aerolinea: '',
+          nro_vuelo_ida: '',
+          fecha_hora_salida: `${data.fecha_viaje_ida}T09:00`,
+          fecha_hora_llegada: '',
+          duracion_ida: '',
+          arribo_estimado_ida: '',
+          nro_vuelo_vuelta: data.fecha_viaje_vuelta ? '' : undefined,
+          fecha_hora_salida_vuelta: data.fecha_viaje_vuelta ? `${data.fecha_viaje_vuelta}T18:00` : undefined,
+          fecha_hora_llegada_vuelta: data.fecha_viaje_vuelta ? '' : undefined,
+          duracion_vuelta: '',
+          arribo_estimado_vuelta: '',
+          tarifa_usd: 0,
+          tarifa_tipo: 'Light'
+        }]);
       }
       setLoading(false);
     };
@@ -109,27 +136,16 @@ export default function CotizarSolicitud() {
         nro_vuelo_ida: v.nro_vuelo_ida,
         nro_vuelo_vuelta: v.nro_vuelo_vuelta || null,
         fecha_hora_salida: v.fecha_hora_salida,
-        fecha_hora_llegada: v.fecha_hora_llegada,
+        fecha_hora_llegada: v.fecha_hora_salida, // Placeholder as we use textual arribo
         fecha_hora_salida_vuelta: v.fecha_hora_salida_vuelta || null,
-        fecha_hora_llegada_vuelta: v.fecha_hora_llegada_vuelta || null,
-        tarifa_usd: v.tarifa_usd
+        fecha_hora_llegada_vuelta: v.fecha_hora_salida_vuelta || null,
+        tarifa_tipo: v.tarifa_tipo,
+        tarifa_usd: v.tarifa_usd,
+        pros: `Duración: ${v.duracion_ida} | Arribo: ${v.arribo_estimado_ida}${v.duracion_vuelta ? `\nRetorno Duración: ${v.duracion_vuelta} | Arribo: ${v.arribo_estimado_vuelta}` : ''}`
       }));
 
       const { error: fError } = await supabase.from('cotizaciones_vuelo').insert(flightsToInsert);
       if (fError) throw fError;
-
-      // 2. Insert Hotel Quote if requested and filled
-      if (solicitud.incluye_hospedaje && hotel.nombre_hotel) {
-        const { error: hError } = await supabase.from('cotizaciones_hotel').insert({
-          id_solicitud: id,
-          tipo_habitacion: hotel.tipo_habitacion,
-          tarifa_noche_usd: hotel.tarifa_noche_usd,
-          incluye_desayuno: hotel.incluye_desayuno,
-          fecha_checkin: solicitud.fecha_viaje_ida,
-          fecha_checkout: solicitud.fecha_viaje_vuelta || solicitud.fecha_viaje_ida // Default to ida if no vuelta
-        });
-        if (hError) throw hError;
-      }
 
       // 3. Update Request Status to 'cotizando'
       await supabase.from('solicitudes_viaje').update({ estado_solicitud: 'cotizando' }).eq('id_solicitud', id);
@@ -148,11 +164,7 @@ export default function CotizarSolicitud() {
             itinerario: `${v.nro_vuelo_ida}${v.nro_vuelo_vuelta ? ' / ' + v.nro_vuelo_vuelta : ''}`,
             precio: v.tarifa_usd
           })),
-          hospedaje: solicitud.incluye_hospedaje ? {
-            hotel: hotel.nombre_hotel,
-            habitacion: hotel.tipo_habitacion,
-            precio: hotel.tarifa_noche_usd
-          } : null
+          hospedaje: null
         })
       }).catch(err => console.error('Error triggering sustento:', err));
 
@@ -318,6 +330,24 @@ export default function CotizarSolicitud() {
                       />
                     </div>
                     <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-500 uppercase px-1 flex items-center justify-between">
+                        Tipo Tarifa
+                        <button type="button" onClick={() => setShowTarifaHelp(true)} className="text-blue-600 hover:text-blue-700">
+                          <HelpCircle className="w-3.5 h-3.5" />
+                        </button>
+                      </label>
+                      <select 
+                        value={v.tarifa_tipo}
+                        onChange={e => updateVuelo(i, 'tarifa_tipo', e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                      >
+                        <option value="Basic">Basic (Solo mochila)</option>
+                        <option value="Light">Light (Equipaje mano)</option>
+                        <option value="Plus">Plus (Equipaje bodega)</option>
+                        <option value="Top">Top (Todo incluido / Cambios)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-500 uppercase px-1">Tarifa (USD)</label>
                       <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -330,6 +360,31 @@ export default function CotizarSolicitud() {
                           className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-blue-600"
                         />
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-400 uppercase px-1 flex items-center">
+                        <Clock className="w-3 h-3 mr-1" /> Duración Ida
+                      </label>
+                      <input 
+                        type="text" 
+                        value={v.duracion_ida}
+                        onChange={e => updateVuelo(i, 'duracion_ida', e.target.value)}
+                        placeholder="Ej: 1h 20m"
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-400 uppercase px-1">Arribo Estimado Ida</label>
+                      <input 
+                        type="text" 
+                        value={v.arribo_estimado_ida}
+                        onChange={e => updateVuelo(i, 'arribo_estimado_ida', e.target.value)}
+                        placeholder="Ej: 11:30 AM"
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                      />
                     </div>
                   </div>
 
@@ -357,14 +412,24 @@ export default function CotizarSolicitud() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-400 uppercase px-1">Llegada Retorno</label>
-                        <input 
-                          required
-                          type="datetime-local" 
-                          value={v.fecha_hora_llegada_vuelta}
-                          onChange={e => updateVuelo(i, 'fecha_hora_llegada_vuelta', e.target.value)}
-                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                        />
+                        <label className="text-xs font-bold text-slate-400 uppercase px-1">Llegada Estimada Retorno</label>
+                        <div className="flex flex-col gap-2">
+                          <input 
+                            type="text" 
+                            value={v.duracion_vuelta}
+                            onChange={e => updateVuelo(i, 'duracion_vuelta', e.target.value)}
+                            placeholder="Duración (Ej: 1h 45m)"
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                          />
+                          <input 
+                            type="text" 
+                            value={v.arribo_estimado_vuelta}
+                            onChange={e => updateVuelo(i, 'arribo_estimado_vuelta', e.target.value)}
+                            placeholder="Hora Arribo (Ej: 08:30 PM)"
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                          />
+                        </div>
+                        <p className="text-[10px] text-slate-400 px-1 mt-1">Indicar duración y hora de aterrizaje estimada.</p>
                       </div>
                     </div>
                   )}
@@ -372,64 +437,7 @@ export default function CotizarSolicitud() {
               ))}
             </div>
 
-            {solicitud!.incluye_hospedaje && (
-              <div className="mt-12">
-                <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
-                  <Hotel className="w-6 h-6 mr-2 text-blue-600" /> Cotización Hotel
-                </h2>
-                <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-200">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase px-1">Nombre del Hotel</label>
-                      <input 
-                        type="text" 
-                        value={hotel.nombre_hotel}
-                        onChange={e => setHotel({...hotel, nombre_hotel: e.target.value})}
-                        placeholder="Ej. Casa Andina Select"
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase px-1">Habitación</label>
-                        <select 
-                          value={hotel.tipo_habitacion}
-                          onChange={e => setHotel({...hotel, tipo_habitacion: e.target.value})}
-                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                        >
-                          <option>Simple</option>
-                          <option>Doble</option>
-                          <option>Matrimonial</option>
-                          <option>Superior</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase px-1">Tarifa/Noche</label>
-                        <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                          <input 
-                            type="number" 
-                            value={hotel.tarifa_noche_usd}
-                            onChange={e => setHotel({...hotel, tarifa_noche_usd: parseFloat(e.target.value)})}
-                            className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex items-center space-x-2 px-2">
-                    <input 
-                      type="checkbox" 
-                      id="breakfast"
-                      checked={hotel.incluye_desayuno}
-                      onChange={e => setHotel({...hotel, incluye_desayuno: e.target.checked})}
-                      className="w-4 h-4 text-blue-600 rounded"
-                    />
-                    <label htmlFor="breakfast" className="text-sm font-medium text-slate-600">Incluye Desayuno</label>
-                  </div>
-                </div>
-              </div>
-            )}
+
 
             {error && (
               <div className="mt-8 p-4 bg-red-50 text-red-700 border border-red-100 rounded-2xl flex items-center">
@@ -463,6 +471,39 @@ export default function CotizarSolicitud() {
           </form>
         </div>
       </div>
+      {/* Modal Helo Tarifa */}
+      {showTarifaHelp && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center">
+                <Info className="w-5 h-5 mr-2 text-blue-600" /> Guía de Tarifas
+              </h3>
+              <button onClick={() => setShowTarifaHelp(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <p className="font-bold text-blue-700 text-sm mb-1 uppercase tracking-wider">Basic / Promo</p>
+                <p className="text-sm text-slate-600">Solo artículo personal (mochila). No incluye maleta de mano ni bodega. No permite cambios.</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100">
+                <p className="font-bold text-blue-700 text-sm mb-1 uppercase tracking-wider">Light</p>
+                <p className="text-sm text-slate-600">Incluye artículo personal y maleta de mano (10kg). No incluye maleta en bodega.</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-green-50 border border-green-100">
+                <p className="font-bold text-green-700 text-sm mb-1 uppercase tracking-wider">Plus</p>
+                <p className="text-sm text-slate-600">Incluye maleta de mano y 1 maleta en bodega (23kg). Selección de asiento estándar.</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-purple-50 border border-purple-100">
+                <p className="font-bold text-purple-700 text-sm mb-1 uppercase tracking-wider">Top / Flex</p>
+                <p className="text-sm text-slate-600">Todo incluido. Maleta de bodega, cambios permitidos sin penalidad (solo diferencia tarifaria) y asiento preferente.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

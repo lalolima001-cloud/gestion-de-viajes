@@ -83,6 +83,9 @@ function App() {
     <BrowserRouter>
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
         <Routes>
+          <Route path="/cotizar/:id" element={<CotizarSolicitud />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+
           <Route
             path="/login"
             element={session ? <Navigate to="/dashboard" replace /> : <Login />}
@@ -114,9 +117,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-
-          <Route path="/cotizar/:id" element={<CotizarSolicitud />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
