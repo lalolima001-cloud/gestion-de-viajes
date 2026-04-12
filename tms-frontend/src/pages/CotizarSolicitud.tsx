@@ -24,12 +24,10 @@ interface VueloOption {
   fecha_hora_salida: string;
   fecha_hora_llegada: string; // We'll keep this in state for DB but it's now simple text/calc
   duracion_ida: string;
-  arribo_estimado_ida: string;
   nro_vuelo_vuelta?: string;
   fecha_hora_salida_vuelta?: string;
   fecha_hora_llegada_vuelta?: string;
   duracion_vuelta?: string;
-  arribo_estimado_vuelta?: string;
   tarifa_usd: number;
   tarifa_tipo: string;
 }
@@ -63,7 +61,6 @@ export default function CotizarSolicitud() {
       fecha_hora_salida: '', 
       fecha_hora_llegada: '', 
       duracion_ida: '1h 30m',
-      arribo_estimado_ida: '',
       tarifa_usd: 0,
       tarifa_tipo: 'Light'
     }
@@ -93,12 +90,10 @@ export default function CotizarSolicitud() {
           fecha_hora_salida: `${data.fecha_viaje_ida}T09:00`,
           fecha_hora_llegada: '',
           duracion_ida: '1h 30m',
-          arribo_estimado_ida: '',
           nro_vuelo_vuelta: data.fecha_viaje_vuelta ? '' : undefined,
           fecha_hora_salida_vuelta: data.fecha_viaje_vuelta ? `${data.fecha_viaje_vuelta}T18:00` : undefined,
           fecha_hora_llegada_vuelta: data.fecha_viaje_vuelta ? '' : undefined,
           duracion_vuelta: '1h 30m',
-          arribo_estimado_vuelta: '',
           tarifa_usd: 0,
           tarifa_tipo: 'Light'
         }]);
@@ -116,7 +111,10 @@ export default function CotizarSolicitud() {
       fecha_hora_salida: solicitud?.fecha_viaje_ida ? `${solicitud.fecha_viaje_ida}T09:00` : '', 
       fecha_hora_llegada: '', 
       duracion_ida: '1h 30m',
-      arribo_estimado_ida: '',
+      nro_vuelo_vuelta: solicitud?.fecha_viaje_vuelta ? '' : undefined,
+      fecha_hora_salida_vuelta: solicitud?.fecha_viaje_vuelta ? `${solicitud.fecha_viaje_vuelta}T18:00` : undefined,
+      fecha_hora_llegada_vuelta: solicitud?.fecha_viaje_vuelta ? '' : undefined,
+      duracion_vuelta: solicitud?.fecha_viaje_vuelta ? '1h 30m' : undefined,
       tarifa_usd: 0,
       tarifa_tipo: 'Light'
     }]);
@@ -164,6 +162,11 @@ export default function CotizarSolicitud() {
       await supabase.from('solicitudes_viaje').update({ estado_solicitud: 'cotizando' }).eq('id_solicitud', id);
 
       // 4. Trigger Confirmation Email (Webhook) - ASYNC
+      const formatDateTime = (dt: string | undefined | null) => {
+        if (!dt) return 'N/A';
+        return dt.replace('T', ' ');
+      };
+
       const webhookUrl = 'https://n8n-farmex.duckdns.org/webhook/quote-confirmation';
       fetch(webhookUrl, {
         method: 'POST',
@@ -175,7 +178,11 @@ export default function CotizarSolicitud() {
             opcion: i + 1,
             aerolinea: v.aerolinea,
             itinerario: `${v.nro_vuelo_ida}${v.nro_vuelo_vuelta ? ' / ' + v.nro_vuelo_vuelta : ''}`,
-            precio: v.tarifa_usd
+            salida: formatDateTime(v.fecha_hora_salida),
+            retorno: v.nro_vuelo_vuelta ? formatDateTime(v.fecha_hora_salida_vuelta) : 'N/A',
+            tarifa: v.tarifa_tipo,
+            duracion: v.duracion_ida,
+            precio: `$ ${v.tarifa_usd}`
           })),
           hospedaje: null
         })

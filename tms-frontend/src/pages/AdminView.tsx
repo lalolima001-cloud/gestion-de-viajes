@@ -161,17 +161,40 @@ export default function AdminView() {
     if (!selectedSol) return;
     setSelectingQuote(true);
     
-    // 1. Marcar cotización como seleccionada
-    await supabase.from('cotizaciones_vuelo').update({ seleccionada: true }).eq('id_cotizacion', id_cotizacion);
-    
-    // 2. Marcar solicitud como confirmada
-    await supabase.from('solicitudes_viaje').update({ estado_solicitud: 'confirmado' }).eq('id_solicitud', selectedSol.id_solicitud);
-    
-    setSuccessMsg('¡Compra confirmada! El pasaje ha sido seleccionado exitosamente.');
-    setSelectedSol(null);
-    setCotizaciones([]);
-    fetchCompra();
-    setSelectingQuote(false);
+    try {
+      // 1. Marcar cotización como seleccionada
+      await supabase.from('cotizaciones_vuelo').update({ seleccionada: true }).eq('id_cotizacion', id_cotizacion);
+      
+      // 2. Marcar solicitud como confirmada
+      await supabase.from('solicitudes_viaje').update({ estado_solicitud: 'confirmado' }).eq('id_solicitud', selectedSol.id_solicitud);
+      
+      // 3. Notificar a la agencia (Webhook n8n)
+      const quote = cotizaciones.find(c => c.id_cotizacion === id_cotizacion);
+      if (quote) {
+        const webhookUrl = 'https://n8n-farmex.duckdns.org/webhook/selection-confirmation';
+        fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id_solicitud: selectedSol.id_solicitud,
+            pasajero: `${selectedSol.empleados.nombres} ${selectedSol.empleados.ap_paterno}`,
+            aerolinea: quote.aerolinea,
+            nro_vuelo_ida: quote.nro_vuelo_ida,
+            nro_vuelo_vuelta: quote.nro_vuelo_vuelta,
+            precio: quote.tarifa_usd
+          })
+        }).catch(err => console.error('Error notificando selección:', err));
+      }
+
+      setSuccessMsg('¡Compra confirmada! El pasaje ha sido seleccionado exitosamente y se notificó a la agencia.');
+      setSelectedSol(null);
+      setCotizaciones([]);
+      fetchCompra();
+    } catch (err) {
+      console.error('Error selecting quote:', err);
+    } finally {
+      setSelectingQuote(false);
+    }
   };
 
   const handleDecision = async (id_solicitud: string, decision: string, fromUrl = false) => {
