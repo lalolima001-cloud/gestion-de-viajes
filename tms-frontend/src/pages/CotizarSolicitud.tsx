@@ -43,6 +43,10 @@ const AEROPUERTOS: Record<string, string> = {
   TBP: 'Tumbes', TYL: 'Talara', CHH: 'Chachapoyas', HUU: 'Huánuco', ATA: 'Anta / Huaraz'
 };
 
+const DURACIONES = [
+  '45m', '1h 00m', '1h 15m', '1h 30m', '1h 45m', '2h 00m', '2h 15m', '2h 30m', '2h 45m', '3h 00m', 'Más de 3h'
+];
+
 export default function CotizarSolicitud() {
   const { id } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
@@ -58,7 +62,7 @@ export default function CotizarSolicitud() {
       nro_vuelo_ida: '', 
       fecha_hora_salida: '', 
       fecha_hora_llegada: '', 
-      duracion_ida: '',
+      duracion_ida: '1h 30m',
       arribo_estimado_ida: '',
       tarifa_usd: 0,
       tarifa_tipo: 'Light'
@@ -88,12 +92,12 @@ export default function CotizarSolicitud() {
           nro_vuelo_ida: '',
           fecha_hora_salida: `${data.fecha_viaje_ida}T09:00`,
           fecha_hora_llegada: '',
-          duracion_ida: '',
+          duracion_ida: '1h 30m',
           arribo_estimado_ida: '',
           nro_vuelo_vuelta: data.fecha_viaje_vuelta ? '' : undefined,
           fecha_hora_salida_vuelta: data.fecha_viaje_vuelta ? `${data.fecha_viaje_vuelta}T18:00` : undefined,
           fecha_hora_llegada_vuelta: data.fecha_viaje_vuelta ? '' : undefined,
-          duracion_vuelta: '',
+          duracion_vuelta: '1h 30m',
           arribo_estimado_vuelta: '',
           tarifa_usd: 0,
           tarifa_tipo: 'Light'
@@ -111,7 +115,7 @@ export default function CotizarSolicitud() {
       nro_vuelo_ida: '', 
       fecha_hora_salida: solicitud?.fecha_viaje_ida ? `${solicitud.fecha_viaje_ida}T09:00` : '', 
       fecha_hora_llegada: '', 
-      duracion_ida: '',
+      duracion_ida: '1h 30m',
       arribo_estimado_ida: '',
       tarifa_usd: 0,
       tarifa_tipo: 'Light'
@@ -150,7 +154,7 @@ export default function CotizarSolicitud() {
         fecha_hora_llegada_vuelta: v.fecha_hora_salida_vuelta || null,
         tarifa_tipo: v.tarifa_tipo,
         tarifa_usd: v.tarifa_usd,
-        pros: `Duración: ${v.duracion_ida} | Arribo: ${v.arribo_estimado_ida}${v.duracion_vuelta ? `\nRetorno Duración: ${v.duracion_vuelta} | Arribo: ${v.arribo_estimado_vuelta}` : ''}`
+        pros: `Duración: ${v.duracion_ida}${v.duracion_vuelta ? ` | Retorno Duración: ${v.duracion_vuelta}` : ''}`
       }));
 
       const { error: fError } = await supabase.from('cotizaciones_vuelo').insert(flightsToInsert);
@@ -372,28 +376,18 @@ export default function CotizarSolicitud() {
                     </div>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-4 mt-4">
+                  <div className="grid md:grid-cols-1 gap-4 mt-4">
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-400 uppercase px-1 flex items-center">
-                        <Clock className="w-3 h-3 mr-1" /> Duración Ida
+                        <Clock className="w-3 h-3 mr-1" /> Duración de Vuelo (Ida)
                       </label>
-                      <input 
-                        type="text" 
+                      <select 
                         value={v.duracion_ida}
                         onChange={e => updateVuelo(i, 'duracion_ida', e.target.value)}
-                        placeholder="Ej: 1h 20m"
                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-400 uppercase px-1">Arribo Estimado Ida</label>
-                      <input 
-                        type="text" 
-                        value={v.arribo_estimado_ida}
-                        onChange={e => updateVuelo(i, 'arribo_estimado_ida', e.target.value)}
-                        placeholder="Ej: 11:30 AM"
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                      />
+                      >
+                        {DURACIONES.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
                     </div>
                   </div>
 
@@ -421,24 +415,14 @@ export default function CotizarSolicitud() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-400 uppercase px-1">Llegada Estimada Retorno</label>
-                        <div className="flex flex-col gap-2">
-                          <input 
-                            type="text" 
-                            value={v.duracion_vuelta}
-                            onChange={e => updateVuelo(i, 'duracion_vuelta', e.target.value)}
-                            placeholder="Duración (Ej: 1h 45m)"
-                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                          />
-                          <input 
-                            type="text" 
-                            value={v.arribo_estimado_vuelta}
-                            onChange={e => updateVuelo(i, 'arribo_estimado_vuelta', e.target.value)}
-                            placeholder="Hora Arribo (Ej: 08:30 PM)"
-                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                          />
-                        </div>
-                        <p className="text-[10px] text-slate-400 px-1 mt-1">Indicar duración y hora de aterrizaje estimada.</p>
+                        <label className="text-xs font-bold text-slate-400 uppercase px-1">Duración (Retorno)</label>
+                        <select 
+                          value={v.duracion_vuelta}
+                          onChange={e => updateVuelo(i, 'duracion_vuelta', e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                        >
+                          {DURACIONES.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
                       </div>
                     </div>
                   )}
