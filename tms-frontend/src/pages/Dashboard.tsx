@@ -197,8 +197,8 @@ export default function Dashboard() {
                   </div>
                   
                   <div>
-                    <h3 className="text-lg font-bold text-slate-800 flex items-center capitalize">
-                      {viaje.destino}
+                    <h3 className="text-lg font-bold text-slate-800 flex items-center uppercase">
+                      {viaje.origen} ➔ {viaje.destino}
                     </h3>
                     <div className="flex space-x-4 mt-1 text-sm text-slate-500 font-medium">
                       <span className="flex items-center capitalize"><MapPin className="w-4 h-4 mr-1 text-slate-400"/> {viaje.tipo_solicitud || 'Individual'} {viaje.incluye_hospedaje ? '+ Hotel' : ''}</span>
@@ -239,7 +239,7 @@ export default function Dashboard() {
                 <p className="text-blue-100 text-xs font-bold uppercase tracking-wider mb-1">Detalle del Viaje</p>
                 <h2 className="text-white font-black text-2xl flex items-center">
                   <Plane className="w-6 h-6 mr-3" />
-                  {detalle.destino}
+                  {detalle.origen} ➔ {detalle.destino}
                 </h2>
               </div>
               <button 

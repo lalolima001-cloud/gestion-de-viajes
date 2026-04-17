@@ -1,9 +1,9 @@
 name: Deploy TMS FARMEX to VPS
 
-# on:
-#   push:
-#     branches: [ "main" ]
-on: workflow_dispatch # Permite dispararlo manualmente desde GitHub si se desea
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   deploy:
