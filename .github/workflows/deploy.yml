@@ -39,9 +39,10 @@ jobs:
             touch .env
           fi
 
-          # Detener y rebuild
+          # Detener y rebuild sin cache para asegurar que los cambios se apliquen
           docker compose -f docker-compose.prod.yml down
-          docker compose -f docker-compose.prod.yml up -d --build
+          docker compose -f docker-compose.prod.yml build --no-cache tms-frontend
+          docker compose -f docker-compose.prod.yml up -d
           
           # Limpieza
           docker image prune -f

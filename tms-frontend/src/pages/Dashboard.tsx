@@ -115,7 +115,7 @@ export default function Dashboard() {
     <div className="max-w-5xl mx-auto p-6 pt-12">
       <div className="flex flex-col md:flex-row md:justify-between items-start md:items-end gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800">Mis Viajes</h1>
+          <h1 className="text-3xl font-bold text-slate-800">Mis Viajes <span className="text-xs text-blue-400 font-normal ml-2">v1.1</span></h1>
           <p className="text-slate-500 mt-2">Gestiona tus solicitudes corporativas</p>
         </div>
         <Link 
