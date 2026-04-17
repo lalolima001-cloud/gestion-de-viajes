@@ -9,6 +9,7 @@ import AdminView from './pages/AdminView';
 import ResetPassword from './pages/ResetPassword';
 import Navbar from './components/Navbar';
 import CotizarSolicitud from './pages/CotizarSolicitud';
+import ConfirmarReserva from './pages/ConfirmarReserva';
 
 // Wrapper para Rutas Protegidas (incluye Navbar)
 const ProtectedRoute = ({
@@ -84,6 +85,7 @@ function App() {
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
         <Routes>
           <Route path="/cotizar/:id" element={<CotizarSolicitud />} />
+          <Route path="/reservar/:id_cotizacion" element={<ConfirmarReserva />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
           <Route

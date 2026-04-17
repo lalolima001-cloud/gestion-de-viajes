@@ -1,0 +1,64 @@
+{
+  "name": "FARMEX - Notificación Compra (Agencia) FINAL",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "purchase-selection",
+        "options": {}
+      },
+      "name": "Webhook Supabase",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.body.record.seleccionado}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Está seleccionado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://jsplvvgyzkmifgguncpf.supabase.co/rest/v1/v_detalles_notificacion?id_cotizacion=eq.{{$json.body.record.id_cotizacion}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "tu_key_aqui" },
+            { "name": "Authorization", "value": "Bearer tu_key_aqui" }
+          ]
+        }
+      },
+      "name": "Get Full Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [600, 200]
+    },
+    {
+      "parameters": {
+        "sendTo": "agencia@ejemplo.com",
+        "subject": "✈️ Compra de Pasaje Aprobada - FARMEX TMS",
+        "message": "=Hola,\n\nSe ha aprobado la compra de un pasaje.\n\nPor favor, ingresa al siguiente link para registrar los códigos de reserva (PNR):\n\nhttps://tms-farmex.duckdns.org/reservar/{{$node[\"Webhook Supabase\"].json.body.record.id_cotizacion}}\n\nSaludos,\nAdministración FARMEX"
+      },
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [800, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Supabase": { "main": [[{ "node": "Está seleccionado?", "type": "main", "index": 0 }]] },
+    "Está seleccionado?": { "main": [[{ "node": "Get Full Details", "type": "main", "index": 0 }]] }
+  }
+}

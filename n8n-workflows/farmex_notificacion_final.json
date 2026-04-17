@@ -1,0 +1,64 @@
+{
+  "name": "FARMEX - Notificación Final (Viajero) con Filtro",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "booking-finalized",
+        "options": {}
+      },
+      "name": "Webhook Supabase",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{!!$json.body.record.pnr_vuelo_ida}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Tiene PNR?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://llvrtndujsqdqonaxclx.supabase.co/rest/v1/v_detalles_notificacion?id_cotizacion=eq.{{$node[\"Webhook Supabase\"].json.body.record.id_cotizacion}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "pon_tu_key_aqui" },
+            { "name": "Authorization", "value": "Bearer pon_tu_key_aqui" }
+          ]
+        }
+      },
+      "name": "Get Details From View",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [600, 200]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{$node[\"Get Details From View\"].json[0].email_pasajero}}",
+        "subject": "✈️ ¡Reserva Confirmada! Detalles de tu vuelo",
+        "message": "=Hola {{$node[\"Get Details From View\"].json[0].nombre_pasajero}},\n\nTu viaje a {{$node[\"Get Details From View\"].json[0].destino}} ya está reservado.\n\nCódigo PNR Ida: {{$node[\"Get Details From View\"].json[0].pnr_vuelo_ida}}\nCódigo PNR Vuelta: {{$node[\"Get Details From View\"].json[0].pnr_vuelo_vuelta}}\n\n¡Buen viaje!\nEquipo FARMEX"
+      },
+      "name": "Send Final Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [800, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Supabase": { "main": [[{ "node": "Tiene PNR?", "type": "main", "index": 0 }]] },
+    "Tiene PNR?": { "main": [[{ "node": "Get Details From View", "type": "main", "index": 0 }]] }
+  }
+}

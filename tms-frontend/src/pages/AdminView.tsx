@@ -106,8 +106,29 @@ export default function AdminView() {
       else if (action === 'reject') handleDecision(id, 'rechazado', true);
       setSearchParams({}, { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Nuevo: Efecto para selección directa de compra desde email
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const selectId = searchParams.get('select');
+
+    if (tab === 'compra') {
+      setActiveTab('compra');
+      if (selectId && solicitudesCompra.length > 0) {
+        const found = solicitudesCompra.find(s => s.id_solicitud === selectId);
+        if (found) {
+          setSelectedSol(found);
+          fetchCotizaciones(found.id_solicitud);
+          // Limpiamos los parámetros para que no se abra solo al refrescar
+          const newParams = new URLSearchParams(searchParams);
+          newParams.delete('tab');
+          newParams.delete('select');
+          setSearchParams(newParams, { replace: true });
+        }
+      }
+    }
+  }, [searchParams, solicitudesCompra]);
 
   const fetchPendientes = async () => {
     setLoading(true);
@@ -136,19 +157,25 @@ export default function AdminView() {
     const { data, error } = await supabase
       .from('solicitudes_viaje')
       .select('*, empleados(nombres, ap_paterno)')
-      .in('estado_solicitud', ['cotizando', 'aprobado'])
+      .in('estado_solicitud', ['cotizando', 'aprobado', 'confirmado'])
       .order('fecha_creacion', { ascending: false });
     if (!error && data) setSolicitudesCompra(data);
     setLoadingCompra(false);
   };
 
   const fetchCotizaciones = async (id_solicitud: string) => {
+    setCotizaciones([]);
     const { data, error } = await supabase
       .from('cotizaciones_vuelo')
       .select('*')
-      .eq('id_solicitud', id_solicitud)
-      .order('opcion_numero');
-    if (!error && data) setCotizaciones(data);
+      .eq('id_solicitud', id_solicitud);
+    
+    if (error) {
+      console.error('Error fetching quotes:', error);
+      alert('Error de base de datos: ' + error.message);
+    } else if (data) {
+      setCotizaciones(data);
+    }
   };
 
   useEffect(() => { fetchPendientes(); }, []);
@@ -163,35 +190,23 @@ export default function AdminView() {
     
     try {
       // 1. Marcar cotización como seleccionada
-      await supabase.from('cotizaciones_vuelo').update({ seleccionada: true }).eq('id_cotizacion', id_cotizacion);
+      const { error: quoteErr } = await supabase.from('cotizaciones_vuelo').update({ seleccionada: true }).eq('id_cotizacion', id_cotizacion);
+      if (quoteErr) throw quoteErr;
       
       // 2. Marcar solicitud como confirmada
-      await supabase.from('solicitudes_viaje').update({ estado_solicitud: 'confirmado' }).eq('id_solicitud', selectedSol.id_solicitud);
+      // Nota: Activar Webhook en Supabase Dashboard para cuando estado_solicitud = 'confirmado'
+      const { error: solErr } = await supabase.from('solicitudes_viaje').update({ estado_solicitud: 'confirmado' }).eq('id_solicitud', selectedSol.id_solicitud);
+      if (solErr) throw solErr;
       
-      // 3. Notificar a la agencia (Webhook n8n)
-      const quote = cotizaciones.find(c => c.id_cotizacion === id_cotizacion);
-      if (quote) {
-        const webhookUrl = 'https://n8n-farmex.duckdns.org/webhook/selection-confirmation';
-        fetch(webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id_solicitud: selectedSol.id_solicitud,
-            pasajero: `${selectedSol.empleados.nombres} ${selectedSol.empleados.ap_paterno}`,
-            aerolinea: quote.aerolinea,
-            nro_vuelo_ida: quote.nro_vuelo_ida,
-            nro_vuelo_vuelta: quote.nro_vuelo_vuelta,
-            precio: quote.tarifa_usd
-          })
-        }).catch(err => console.error('Error notificando selección:', err));
-      }
+      alert('¡Compra registrada exitosamente! Supabase procesará la notificación a la agencia automáticamente.');
 
-      setSuccessMsg('¡Compra confirmada! El pasaje ha sido seleccionado exitosamente y se notificó a la agencia.');
+      setSuccessMsg('¡Compra confirmada! El pasaje ha sido seleccionado exitosamente.');
       setSelectedSol(null);
       setCotizaciones([]);
       fetchCompra();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error selecting quote:', err);
+      alert('Error al procesar la selección: ' + (err.message || 'Error desconocido'));
     } finally {
       setSelectingQuote(false);
     }
