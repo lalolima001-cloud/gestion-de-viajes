@@ -12,6 +12,8 @@ interface Cotizacion {
   aerolinea: string;
   nro_vuelo_ida: string;
   nro_vuelo_vuelta: string | null;
+  fecha_hora_salida: string;
+  fecha_hora_salida_vuelta: string | null;
   tarifa_usd: number;
   solicitudes_viaje: {
     origen: string;
@@ -22,7 +24,14 @@ interface Cotizacion {
   };
 }
 
-
+const AEROPUERTOS: Record<string, string> = {
+  LIM: 'Lima (Chavez)', AQP: 'Arequipa (Rodríguez Ballón)', CUZ: 'Cusco (Velasco Astete)',
+  PIU: 'Piura (Concha Iberico)', TPP: 'Tarapoto', IQT: 'Iquitos (Secada Vignetta)',
+  CIX: 'Chiclayo (Quiñones)', TRU: 'Trujillo (Martínez de Pinillos)', PCL: 'Pucallpa (David Abensur)',
+  JUL: 'Juliaca (Manco Cápac)', TCQ: 'Tacna (Carlos Ciriani)', CJA: 'Cajamarca',
+  AYP: 'Ayacucho', JAU: 'Jauja (Francisco Carlé)', PEM: 'Puerto Maldonado (Padre Aldamiz)',
+  TBP: 'Tumbes', TYL: 'Talara', CHH: 'Chachapoyas', HUU: 'Huánuco', ATA: 'Anta / Huaraz'
+};
 
 export default function ConfirmarReserva() {
   const { id_cotizacion } = useParams<{ id_cotizacion: string }>();
@@ -43,7 +52,7 @@ export default function ConfirmarReserva() {
       const { data, error } = await supabase
         .from('cotizaciones_vuelo')
         .select(`
-          id_cotizacion, id_solicitud, aerolinea, nro_vuelo_ida, nro_vuelo_vuelta, tarifa_usd,
+          id_cotizacion, id_solicitud, aerolinea, nro_vuelo_ida, nro_vuelo_vuelta, tarifa_usd, fecha_hora_salida, fecha_hora_salida_vuelta,
           solicitudes_viaje (
             origen, destino, fecha_viaje_ida, fecha_viaje_vuelta,
             empleados (nombres, ap_paterno, email_corporativo)
@@ -99,7 +108,10 @@ export default function ConfirmarReserva() {
             pnr_vuelo_vuelta: cotizacion.nro_vuelo_vuelta ? pnrs.vuelta.trim().toUpperCase() : null,
             email_pasajero: cotizacion.solicitudes_viaje.empleados.email_corporativo,
             nombre_pasajero: `${cotizacion.solicitudes_viaje.empleados.nombres} ${cotizacion.solicitudes_viaje.empleados.ap_paterno}`,
-            destino: cotizacion.solicitudes_viaje.destino
+            origen: AEROPUERTOS[cotizacion.solicitudes_viaje.origen] || cotizacion.solicitudes_viaje.origen,
+            destino: AEROPUERTOS[cotizacion.solicitudes_viaje.destino] || cotizacion.solicitudes_viaje.destino,
+            fecha_salida: cotizacion.fecha_hora_salida?.replace('T', ' '),
+            fecha_retorno: cotizacion.fecha_hora_salida_vuelta?.replace('T', ' ')
           }
         })
       }).catch(err => console.error('Error notifying final booking to n8n:', err));
