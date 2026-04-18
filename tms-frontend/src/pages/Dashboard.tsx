@@ -339,10 +339,25 @@ export default function Dashboard() {
                     </div>
                   </div>
                 )}
-                {detalle.estado_solicitud === 'completado' && detalle.cotizaciones_vuelo && (
+                {detalle.estado_solicitud === 'completado' && (
                   (() => {
-                    const selectedQuote = detalle.cotizaciones_vuelo.find((c: any) => c.seleccionada);
-                    if (!selectedQuote) return null;
+                    const quotes = detalle.cotizaciones_vuelo || [];
+                    const selectedQuote = quotes.find((c: any) => c.pnr_vuelo_ida) || quotes.find((c: any) => c.seleccionada) || quotes[0];
+                    
+                    if (!selectedQuote) {
+                       return (
+                         <div className="flex items-start space-x-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                           <div className="w-10 h-10 bg-white text-slate-400 rounded-xl flex items-center justify-center flex-shrink-0 border border-slate-200">
+                             <Loader2 className="w-5 h-5 animate-spin" />
+                           </div>
+                           <div>
+                             <p className="text-xs text-slate-400 font-bold uppercase mb-1">Sincronizando Boletos</p>
+                             <p className="text-sm text-slate-500 leading-relaxed italic">Validando códigos PNR con la base de datos...</p>
+                           </div>
+                         </div>
+                       );
+                    }
+                    
                     return (
                       <div className="flex items-start space-x-4 bg-sky-50 p-4 rounded-2xl border border-sky-100">
                         <div className="w-10 h-10 bg-white text-sky-600 rounded-xl flex items-center justify-center flex-shrink-0 border border-sky-200">
@@ -351,7 +366,7 @@ export default function Dashboard() {
                         <div>
                           <p className="text-xs text-sky-600 font-bold uppercase mb-1">Códigos de Reserva PNR</p>
                           <div className="text-sm text-slate-700 leading-relaxed font-mono">
-                            <p><strong>Ida:</strong> {selectedQuote.pnr_vuelo_ida}</p>
+                            <p><strong>Ida:</strong> {selectedQuote.pnr_vuelo_ida || 'Pendiente'}</p>
                             {selectedQuote.pnr_vuelo_vuelta && <p><strong>Retorno:</strong> {selectedQuote.pnr_vuelo_vuelta}</p>}
                           </div>
                         </div>
