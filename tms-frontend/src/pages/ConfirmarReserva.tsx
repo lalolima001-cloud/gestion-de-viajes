@@ -96,10 +96,13 @@ export default function ConfirmarReserva() {
           record: {
             id_cotizacion: id_cotizacion,
             pnr_vuelo_ida: pnrs.ida.trim().toUpperCase(),
-            pnr_vuelo_vuelta: cotizacion.nro_vuelo_vuelta ? pnrs.vuelta.trim().toUpperCase() : null
+            pnr_vuelo_vuelta: cotizacion.nro_vuelo_vuelta ? pnrs.vuelta.trim().toUpperCase() : null,
+            email_pasajero: cotizacion.solicitudes_viaje.empleados.email_corporativo,
+            nombre_pasajero: `${cotizacion.solicitudes_viaje.empleados.nombres} ${cotizacion.solicitudes_viaje.empleados.ap_paterno}`,
+            destino: cotizacion.solicitudes_viaje.destino
           }
         })
-      }).catch(err => console.error('Error notiying final booking to n8n:', err));
+      }).catch(err => console.error('Error notifying final booking to n8n:', err));
 
       setSubmitted(true);
     } catch (err: any) {
