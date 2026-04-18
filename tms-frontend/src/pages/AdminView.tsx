@@ -198,7 +198,7 @@ export default function AdminView() {
       if (solErr) throw solErr;
       
       // 3. Notificar a n8n directamente (Bypass de Supabase Webhook)
-      const purchaseUrl = 'https://n8n-farmex.duckdns.org/webhook/purchase-selection';
+      const purchaseUrl = import.meta.env.VITE_N8N_WEBHOOK_PURCHASE_URL;
       fetch(purchaseUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -247,7 +247,7 @@ export default function AdminView() {
     if (decision === 'aprobado') {
       const sol = solicitudes.find(s => s.id_solicitud === id_solicitud);
       if (sol) {
-        const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'https://n8n-farmex.duckdns.org/webhook/quote-request';
+        const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_QUOTE_URL;
         
         const formatFecha = (fecha: string | null) => {
           if (!fecha) return 'N/A';

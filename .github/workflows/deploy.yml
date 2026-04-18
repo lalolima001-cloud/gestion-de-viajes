@@ -43,6 +43,23 @@ jobs:
           docker compose -f docker-compose.prod.yml down
           docker compose -f docker-compose.prod.yml build --no-cache tms-frontend
           docker compose -f docker-compose.prod.yml up -d
-          
+
           # Limpieza
           docker image prune -f
+
+          # Verificar que el servicio responde correctamente
+          echo "Esperando que el servicio levante..."
+          sleep 20
+          MAX_RETRIES=5
+          COUNT=0
+          until curl -sf --max-time 10 http://localhost/ > /dev/null; do
+            COUNT=$((COUNT+1))
+            if [ $COUNT -ge $MAX_RETRIES ]; then
+              echo "ERROR: El servicio no responde después de $MAX_RETRIES intentos. Despliegue fallido."
+              docker compose -f docker-compose.prod.yml logs tms-frontend --tail=50
+              exit 1
+            fi
+            echo "Intento $COUNT/$MAX_RETRIES fallido, reintentando en 10s..."
+            sleep 10
+          done
+          echo "Despliegue exitoso: el servicio responde correctamente."

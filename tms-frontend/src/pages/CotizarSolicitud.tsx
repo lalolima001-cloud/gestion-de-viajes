@@ -167,7 +167,7 @@ export default function CotizarSolicitud() {
         return dt.replace('T', ' ');
       };
 
-      const webhookUrl = 'https://n8n-farmex.duckdns.org/webhook/quote-confirmation';
+      const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_CONFIRMATION_URL;
       fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

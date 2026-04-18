@@ -107,7 +107,7 @@ export default function ConfirmarReserva() {
         .eq('id_solicitud', cotizacion.id_solicitud);
 
       // 3. Notificar a n8n para correos finales de forma directa (Bypass)
-      const finalUrl = 'https://n8n-farmex.duckdns.org/webhook/booking-finalized';
+      const finalUrl = import.meta.env.VITE_N8N_WEBHOOK_BOOKING_URL;
       fetch(finalUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

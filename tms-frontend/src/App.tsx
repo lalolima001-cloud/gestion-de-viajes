@@ -11,7 +11,6 @@ import Navbar from './components/Navbar';
 import CotizarSolicitud from './pages/CotizarSolicitud';
 import ConfirmarReserva from './pages/ConfirmarReserva';
 
-// Wrapper para Rutas Protegidas (incluye Navbar)
 const ProtectedRoute = ({
   children,
   session,
@@ -24,6 +23,25 @@ const ProtectedRoute = ({
   if (!session) {
     return <Navigate to="/login" replace />;
   }
+  return (
+    <>
+      <Navbar session={session} isAdmin={isAdmin} />
+      {children}
+    </>
+  );
+};
+
+const AdminRoute = ({
+  children,
+  session,
+  isAdmin,
+}: {
+  children: React.ReactNode;
+  session: Session | null;
+  isAdmin: boolean;
+}) => {
+  if (!session) return <Navigate to="/login" replace />;
+  if (!isAdmin) return <Navigate to="/dashboard" replace />;
   return (
     <>
       <Navbar session={session} isAdmin={isAdmin} />
@@ -114,9 +132,9 @@ function App() {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute session={session} isAdmin={isAdmin}>
+              <AdminRoute session={session} isAdmin={isAdmin}>
                 <AdminView />
-              </ProtectedRoute>
+              </AdminRoute>
             }
           />
 

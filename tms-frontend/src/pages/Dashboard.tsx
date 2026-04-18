@@ -22,6 +22,12 @@ const formatearFechaLarga = (fechaHoraStr: string | null | undefined) => {
   return `${parts[2]} de ${meses[parseInt(parts[1], 10) - 1]} del ${parts[0]}` + (timePart ? ` a las ${timePart.substring(0,5)}` : '');
 };
 
+interface CotizacionVuelo {
+  pnr_vuelo_ida: string | null;
+  pnr_vuelo_vuelta: string | null;
+  seleccionada: boolean;
+}
+
 interface Viaje {
   id_solicitud: string;
   origen: string;
@@ -32,7 +38,7 @@ interface Viaje {
   incluye_hospedaje: boolean;
   tipo_solicitud: string;
   justificacion_negocio: string | null;
-  cotizaciones_vuelo?: any[];
+  cotizaciones_vuelo?: CotizacionVuelo[];
 }
 
 export default function Dashboard() {
