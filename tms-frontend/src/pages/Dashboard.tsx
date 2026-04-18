@@ -12,6 +12,16 @@ const AEROPUERTOS: Record<string, string> = {
   TBP: 'Tumbes', TYL: 'Talara', CHH: 'Chachapoyas', HUU: 'Huánuco', ATA: 'Anta / Huaraz'
 };
 
+const formatearFechaLarga = (fechaHoraStr: string | null | undefined) => {
+  if (!fechaHoraStr) return '';
+  const [datePart, timePart] = fechaHoraStr.split('T');
+  if(!datePart) return fechaHoraStr;
+  const parts = datePart.split('-');
+  if(parts.length !== 3) return fechaHoraStr;
+  const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  return `${parts[2]} de ${meses[parseInt(parts[1], 10) - 1]} del ${parts[0]}` + (timePart ? ` a las ${timePart.substring(0,5)}` : '');
+};
+
 interface Viaje {
   id_solicitud: string;
   origen: string;
@@ -22,6 +32,7 @@ interface Viaje {
   incluye_hospedaje: boolean;
   tipo_solicitud: string;
   justificacion_negocio: string | null;
+  cotizaciones_vuelo?: any[];
 }
 
 export default function Dashboard() {
@@ -48,7 +59,7 @@ export default function Dashboard() {
       // 2. Traer SOLO las solicitudes de ese empleado
       const { data, error } = await supabase
         .from('solicitudes_viaje')
-        .select('*')
+        .select('*, cotizaciones_vuelo(pnr_vuelo_ida, pnr_vuelo_vuelta, seleccionada)')
         .eq('id_empleado', idEmpleado)
         .order('fecha_creacion', { ascending: false });
 
@@ -212,6 +223,10 @@ export default function Dashboard() {
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-700 capitalize">
                       <CheckCircle className="w-4 h-4 mr-1.5" /> {viaje.estado_solicitud}
                     </span>
+                  ) : viaje.estado_solicitud === 'completado' ? (
+                     <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-700 capitalize">
+                      <CheckCircle className="w-4 h-4 mr-1.5" /> Reservado
+                    </span>
                   ) : viaje.estado_solicitud === 'rechazado' ? (
                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-700 capitalize">
                       <AlertCircle className="w-4 h-4 mr-1.5" /> Rechazado
@@ -257,6 +272,10 @@ export default function Dashboard() {
                   <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-bold bg-green-100 text-green-700 capitalize">
                     <CheckCircle className="w-4 h-4 mr-2" /> {detalle.estado_solicitud}
                   </span>
+                ) : detalle.estado_solicitud === 'completado' ? (
+                  <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-bold bg-green-100 text-green-700 capitalize">
+                    <CheckCircle className="w-4 h-4 mr-2" /> Reservado
+                  </span>
                 ) : detalle.estado_solicitud === 'rechazado' ? (
                   <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-bold bg-red-100 text-red-700 capitalize">
                     <XCircle className="w-4 h-4 mr-2" /> Rechazado
@@ -289,9 +308,9 @@ export default function Dashboard() {
                   <div>
                     <p className="text-xs text-slate-400 font-bold uppercase mb-0.5">Fechas Programadas</p>
                     <div className="space-y-1">
-                      <p className="font-bold text-slate-800">Ida: <span className="font-normal text-slate-600">{detalle.fecha_viaje_ida}</span></p>
+                      <p className="font-bold text-slate-800">Ida: <span className="font-normal text-slate-600">{formatearFechaLarga(detalle.fecha_viaje_ida)}</span></p>
                       {detalle.fecha_viaje_vuelta && (
-                        <p className="font-bold text-slate-800">Retorno: <span className="font-normal text-slate-600">{detalle.fecha_viaje_vuelta}</span></p>
+                        <p className="font-bold text-slate-800">Retorno: <span className="font-normal text-slate-600">{formatearFechaLarga(detalle.fecha_viaje_vuelta)}</span></p>
                       )}
                     </div>
                   </div>
@@ -319,6 +338,26 @@ export default function Dashboard() {
                       <p className="text-sm text-slate-600 leading-relaxed italic">"{detalle.justificacion_negocio}"</p>
                     </div>
                   </div>
+                )}
+                {detalle.estado_solicitud === 'completado' && detalle.cotizaciones_vuelo && (
+                  (() => {
+                    const selectedQuote = detalle.cotizaciones_vuelo.find((c: any) => c.seleccionada);
+                    if (!selectedQuote) return null;
+                    return (
+                      <div className="flex items-start space-x-4 bg-sky-50 p-4 rounded-2xl border border-sky-100">
+                        <div className="w-10 h-10 bg-white text-sky-600 rounded-xl flex items-center justify-center flex-shrink-0 border border-sky-200">
+                          <Plane className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-sky-600 font-bold uppercase mb-1">Códigos de Reserva PNR</p>
+                          <div className="text-sm text-slate-700 leading-relaxed font-mono">
+                            <p><strong>Ida:</strong> {selectedQuote.pnr_vuelo_ida}</p>
+                            {selectedQuote.pnr_vuelo_vuelta && <p><strong>Retorno:</strong> {selectedQuote.pnr_vuelo_vuelta}</p>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()
                 )}
               </div>
             </div>

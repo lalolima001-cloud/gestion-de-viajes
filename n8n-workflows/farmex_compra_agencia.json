@@ -17,7 +17,7 @@
         "conditions": {
           "boolean": [
             {
-              "value1": "={{$json.body.record.seleccionado}}",
+              "value1": "={{$json.body.record.seleccionada}}",
               "value2": true
             }
           ]
