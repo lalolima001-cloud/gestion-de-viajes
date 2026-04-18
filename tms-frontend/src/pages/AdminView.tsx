@@ -194,11 +194,24 @@ export default function AdminView() {
       if (quoteErr) throw quoteErr;
       
       // 2. Marcar solicitud como confirmada
-      // Nota: Activar Webhook en Supabase Dashboard para cuando estado_solicitud = 'confirmado'
       const { error: solErr } = await supabase.from('solicitudes_viaje').update({ estado_solicitud: 'confirmado' }).eq('id_solicitud', selectedSol.id_solicitud);
       if (solErr) throw solErr;
       
-      alert('¡Compra registrada exitosamente! Supabase procesará la notificación a la agencia automáticamente.');
+      // 3. Notificar a n8n directamente (Bypass de Supabase Webhook)
+      let purchaseUrl = (import.meta.env.VITE_N8N_WEBHOOK_URL || 'https://n8n-farmex.duckdns.org/webhook/quote-request');
+      purchaseUrl = purchaseUrl.replace('quote-request', 'purchase-selection').replace('webhook-test', 'webhook');
+      fetch(purchaseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          record: {
+            id_cotizacion: id_cotizacion,
+            seleccionada: true
+          }
+        })
+      }).catch(err => console.error('Error notiying purchase to n8n:', err));
+      
+      alert('¡Compra registrada exitosamente! Se ha enviado la notificación a la agencia.');
 
       setSuccessMsg('¡Compra confirmada! El pasaje ha sido seleccionado exitosamente.');
       setSelectedSol(null);
