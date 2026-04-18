@@ -87,8 +87,20 @@ export default function ConfirmarReserva() {
         .update({ estado_solicitud: 'completado' })
         .eq('id_solicitud', cotizacion.id_solicitud);
 
-      // 3. Notificar a n8n para correos finales
-      // Delegado a Supabase Database Webhooks para evitar errores de CORS/Red
+      // 3. Notificar a n8n para correos finales de forma directa (Bypass)
+      const finalUrl = 'https://n8n-farmex.duckdns.org/webhook/booking-finalized';
+      fetch(finalUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          record: {
+            id_cotizacion: id_cotizacion,
+            pnr_vuelo_ida: pnrs.ida.trim().toUpperCase(),
+            pnr_vuelo_vuelta: cotizacion.nro_vuelo_vuelta ? pnrs.vuelta.trim().toUpperCase() : null
+          }
+        })
+      }).catch(err => console.error('Error notiying final booking to n8n:', err));
+
       setSubmitted(true);
     } catch (err: any) {
       setError('Error al confirmar la reserva: ' + err.message);
